@@ -53,10 +53,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/johnhenry/AppleFoundationModelsForJavascript.git"
+    "url": "https://github.com/johnhenry/apple-foundation-models.git"
   },
   "bugs": {
-    "url": "https://github.com/johnhenry/AppleFoundationModelsForJavascript/issues"
+    "url": "https://github.com/johnhenry/apple-foundation-models/issues"
   },
-  "homepage": "https://github.com/johnhenry/AppleFoundationModelsForJavascript#readme"
+  "homepage": "https://github.com/johnhenry/apple-foundation-models#readme"
 }
