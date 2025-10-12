@@ -1,0 +1,62 @@
+{
+  "name": "apple-foundation-models",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "1-to-1 TypeScript wrapper for Apple's Foundation Models, enabling use in Node.js and other JavaScript frameworks",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "swift",
+    "scripts"
+  ],
+  "scripts": {
+    "build:swift": "node scripts/build-swift.js",
+    "build:types": "tsc --project tsconfig.build.json",
+    "build:js": "rolldown -c rolldown.config.js",
+    "build": "npm run build:js && npm run build:types",
+    "clean": "rm -rf dist node_modules swift/.build",
+    "postinstall": "node scripts/build-swift.js",
+    "prepare": "npm run build",
+    "test": "node --test",
+    "validate": "node scripts/validate.js"
+  },
+  "keywords": [
+    "apple",
+    "foundation-models",
+    "ai",
+    "llm",
+    "swift",
+    "macos",
+    "typescript"
+  ],
+  "author": "John Henry",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "rolldown": "^1.0.0-beta.42",
+    "typescript": "^5.7.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johnhenry/AppleFoundationModelsForJavascript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johnhenry/AppleFoundationModelsForJavascript/issues"
+  },
+  "homepage": "https://github.com/johnhenry/AppleFoundationModelsForJavascript#readme"
+}
