@@ -27,5 +27,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Only works on macOS 15.0 (Sequoia) or later
 - Requires active internet connection for model downloads
 
-[Unreleased]: https://github.com/johnhenry/AppleFoundationModelsForJavascript/compare/v0.0.0...HEAD
-[0.0.0]: https://github.com/johnhenry/AppleFoundationModelsForJavascript/releases/tag/v0.0.0
+[Unreleased]: https://github.com/johnhenry/apple-foundation-models/compare/v0.0.0...HEAD
+[0.0.0]: https://github.com/johnhenry/apple-foundation-models/releases/tag/v0.0.0

@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { accessSync, constants } from 'fs';
 import type { SwiftResponse } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,7 +18,7 @@ export function getSwiftExecutablePath(): string {
   
   // Try production path first
   try {
-    require('fs').accessSync(productionPath, require('fs').constants.X_OK);
+    accessSync(productionPath, constants.X_OK);
     return productionPath;
   } catch {
     return debugPath;

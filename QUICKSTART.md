@@ -106,7 +106,7 @@ try {
 
 - 📖 Read the [full documentation](README.md)
 - 🔍 Explore [examples](examples/)
-- 🐛 [Report issues](https://github.com/johnhenry/AppleFoundationModelsForJavascript/issues)
+- 🐛 [Report issues](https://github.com/johnhenry/apple-foundation-models/issues)
 - 🤝 [Contribute](CONTRIBUTING.md)
 
 ## Troubleshooting
@@ -146,7 +146,7 @@ npm run build:swift
 
 ## Getting Help
 
-- 📧 [Open an issue](https://github.com/johnhenry/AppleFoundationModelsForJavascript/issues)
-- 💬 Check existing [discussions](https://github.com/johnhenry/AppleFoundationModelsForJavascript/discussions)
+- 📧 [Open an issue](https://github.com/johnhenry/apple-foundation-models/issues)
+- 💬 Check existing [discussions](https://github.com/johnhenry/apple-foundation-models/discussions)
 
 Happy coding! 🎉
