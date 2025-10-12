@@ -30,6 +30,9 @@ interface Message {
   error?: { code: number; message: string };
 }
 
+// Counter to ensure unique socket paths even within same millisecond
+let socketCounter = 0;
+
 export class PersistentServerExecutor implements Executor {
   private socket?: net.Socket;
   private serverProcess?: ChildProcess;
@@ -41,8 +44,8 @@ export class PersistentServerExecutor implements Executor {
 
   constructor(tools: Tool[]) {
     this.tools = new Map(tools.map((t) => [t.name, t]));
-    // Use process PID to ensure unique socket path
-    this.socketPath = `/tmp/afm-${process.pid}-${Date.now()}.sock`;
+    // Use process PID, timestamp, and counter to ensure unique socket path
+    this.socketPath = `/tmp/afm-${process.pid}-${Date.now()}-${socketCounter++}.sock`;
   }
 
   /**
