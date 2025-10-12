@@ -23,6 +23,7 @@
     "build:types": "tsc --project tsconfig.build.json",
     "build:js": "rolldown -c rolldown.config.js",
     "build": "npm run build:js && npm run build:types",
+    "clean": "rm -rf dist node_modules swift/.build",
     "postinstall": "node scripts/build-swift.js",
     "prepare": "npm run build",
     "test": "node --test"
