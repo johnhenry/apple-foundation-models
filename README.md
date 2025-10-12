@@ -39,17 +39,17 @@ npm run build:swift
 
 ### Instance-based API (1-to-1 Swift mapping)
 
-The `LanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
+The `SystemLanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
 
 ```typescript
-import { LanguageModel } from 'apple-foundation-models';
+import { SystemLanguageModel } from 'apple-foundation-models';
 
 // List available models (static property)
-const models = await LanguageModel.availableModels;
+const models = await SystemLanguageModel.availableModels;
 console.log('Available models:', models);
 
 // Create a model instance
-const model = new LanguageModel(models[0].id);
+const model = new SystemLanguageModel(models[0].id);
 
 // Get model properties
 console.log('Model ID:', model.id);
@@ -71,10 +71,10 @@ console.log('Finish reason:', result.finishReason);
 Use `LanguageModelSession` for multi-turn conversations with context:
 
 ```typescript
-import { LanguageModel, LanguageModelSession } from 'apple-foundation-models';
+import { SystemLanguageModel, LanguageModelSession } from 'apple-foundation-models';
 
 // Get a model
-const models = await LanguageModel.availableModels;
+const models = await SystemLanguageModel.availableModels;
 
 // Create a session with a system prompt
 const session = new LanguageModelSession(models[0].id, {
@@ -101,33 +101,33 @@ session.reset();
 
 ## API Reference
 
-### `LanguageModel` (Recommended)
+### `SystemLanguageModel` (Recommended)
 
-Instance-based class that provides 1-to-1 mapping with Swift's `LanguageModel`.
+Instance-based class that provides 1-to-1 mapping with Swift's `SystemLanguageModel`.
 
 #### Static Properties
 
-##### `LanguageModel.availableModels`
+##### `SystemLanguageModel.availableModels`
 
 Returns a promise that resolves to a list of available language models.
 
-**Returns**: `Promise<LanguageModelInfo[]>`
+**Returns**: `Promise<SystemLanguageModelInfo[]>`
 
 ```typescript
-const models = await LanguageModel.availableModels;
+const models = await SystemLanguageModel.availableModels;
 ```
 
 #### Constructor
 
-##### `new LanguageModel(id: string)`
+##### `new SystemLanguageModel(id: string)`
 
-Creates a new LanguageModel instance.
+Creates a new SystemLanguageModel instance.
 
 **Parameters**:
-- `id` - The model identifier (from `LanguageModel.availableModels`)
+- `id` - The model identifier (from `SystemLanguageModel.availableModels`)
 
 ```typescript
-const model = new LanguageModel('model-id');
+const model = new SystemLanguageModel('model-id');
 ```
 
 #### Instance Properties
@@ -192,7 +192,7 @@ Session-based class for conversational interactions that maintains context acros
 Creates a new LanguageModelSession instance.
 
 **Parameters**:
-- `modelId: string | LanguageModel` - The model identifier or LanguageModel instance
+- `modelId: string | SystemLanguageModel` - The model identifier or SystemLanguageModel instance
 - `config?: SessionConfig` - Optional session configuration
 
 ```typescript
@@ -215,9 +215,9 @@ const session = new LanguageModelSession('model-id', {
 
 ##### `session.languageModel`
 
-Get the underlying LanguageModel instance.
+Get the underlying SystemLanguageModel instance.
 
-**Returns**: `LanguageModel`
+**Returns**: `SystemLanguageModel`
 
 ##### `session.messages`
 
@@ -369,9 +369,9 @@ MIT
 
 ### 0.1.0 (1-to-1 API Translation)
 
-- ✨ **NEW**: `LanguageModel` class - Instance-based API that provides true 1-to-1 mapping with Swift
-  - Constructor: `new LanguageModel(id)`
-  - Static property: `LanguageModel.availableModels`
+- ✨ **NEW**: `SystemLanguageModel` class - Instance-based API that provides true 1-to-1 mapping with Swift
+  - Constructor: `new SystemLanguageModel(id)`
+  - Static property: `SystemLanguageModel.availableModels`
   - Instance methods: `generate()`, `generateStream()`
   - Property getters: `getName()`, `getMaxTokens()`
 - ✨ **NEW**: `LanguageModelSession` class - Session-based API for conversational interactions
@@ -384,7 +384,7 @@ MIT
   - `MessageRole` enum (`System`, `User`, `Assistant`)
   - `SessionConfig` for session configuration
 - 📚 Comprehensive documentation with examples
-- 🗑️ **REMOVED**: Deprecated `FoundationModels` static API (breaking change - use `LanguageModel` instead)
+- 🗑️ **REMOVED**: Deprecated `FoundationModels` static API (breaking change - use `SystemLanguageModel` instead)
 - 📝 Added new examples: `instance-based-api.mjs`, `session-based-api.mjs`
 
 ### 0.0.0 (Initial Release)

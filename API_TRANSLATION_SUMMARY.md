@@ -11,30 +11,30 @@ The original issue requested a complete 1-to-1 translation of every API from App
 The original implementation had the following problems:
 
 1. **Incorrect API mapping**: Everything was implemented as static methods on a `FoundationModels` class
-2. **Not 1-to-1 with Swift**: The Swift `LanguageModel` is an instance-based class, not a static utility
+2. **Not 1-to-1 with Swift**: The Swift `SystemLanguageModel` is an instance-based class, not a static utility
 3. **Missing classes**: `LanguageModelSession` was not implemented
 
 ## Solution Implemented
 
-### 1. LanguageModel Class (Instance-based)
+### 1. SystemLanguageModel Class (Instance-based)
 
-Created a proper instance-based `LanguageModel` class that matches the Swift API:
+Created a proper instance-based `SystemLanguageModel` class that matches the Swift API:
 
 ```typescript
 // Swift API:
-// let models = LanguageModel.availableModels
-// let model = LanguageModel(id: "model-id")
+// let models = SystemLanguageModel.availableModels
+// let model = SystemLanguageModel(id: "model-id")
 // let result = try await model.generate(prompt: "...", config: config)
 
 // TypeScript API (now 1-to-1):
-const models = await LanguageModel.availableModels;
-const model = new LanguageModel(models[0].id);
+const models = await SystemLanguageModel.availableModels;
+const model = new SystemLanguageModel(models[0].id);
 const result = await model.generate('...', { maxTokens: 100 });
 ```
 
 **Features:**
-- Constructor: `new LanguageModel(id: string)`
-- Static property: `LanguageModel.availableModels` (returns Promise)
+- Constructor: `new SystemLanguageModel(id: string)`
+- Static property: `SystemLanguageModel.availableModels` (returns Promise)
 - Instance methods:
   - `generate(prompt, config?)` - Generate text
   - `generateStream(prompt, config?)` - Stream generation (not yet implemented)
@@ -75,7 +75,7 @@ session.reset();
   - `generateStream(prompt, config?)` - Stream in context (not yet implemented)
   - `reset()` - Clear message history
 - Properties:
-  - `languageModel` - Get underlying LanguageModel instance
+  - `languageModel` - Get underlying SystemLanguageModel instance
   - `messages` - Get conversation history (read-only)
 
 ### 3. New Types and Interfaces
@@ -113,15 +113,15 @@ const result = await FoundationModels.generateText({
 });
 
 // New API (recommended)
-const models = await LanguageModel.availableModels;
-const model = new LanguageModel(models[0].id);
+const models = await SystemLanguageModel.availableModels;
+const model = new SystemLanguageModel(models[0].id);
 const result = await model.generate('test', { maxTokens: 100 });
 ```
 
 ## Files Changed
 
 ### Source Files
-- `src/foundation-models.ts` - Added LanguageModel and LanguageModelSession classes
+- `src/foundation-models.ts` - Added SystemLanguageModel and LanguageModelSession classes
 - `src/types.ts` - Added Message, MessageRole, SessionConfig types
 - `src/index.ts` - Updated exports to include new classes
 
@@ -131,7 +131,7 @@ const result = await model.generate('test', { maxTokens: 100 });
 - `IMPLEMENTATION.md` - Updated architecture and implementation details
 
 ### Examples
-- `examples/instance-based-api.mjs` - Demonstrates LanguageModel usage
+- `examples/instance-based-api.mjs` - Demonstrates SystemLanguageModel usage
 - `examples/session-based-api.mjs` - Demonstrates LanguageModelSession usage
 
 ### Tests
@@ -141,8 +141,8 @@ const result = await model.generate('test', { maxTokens: 100 });
 
 | Swift API | Old TypeScript | New TypeScript |
 |-----------|---------------|----------------|
-| `LanguageModel.availableModels` | `FoundationModels.listAvailableModels()` | `LanguageModel.availableModels` ✅ |
-| `LanguageModel(id:)` | N/A | `new LanguageModel(id)` ✅ |
+| `SystemLanguageModel.availableModels` | `FoundationModels.listAvailableModels()` | `SystemLanguageModel.availableModels` ✅ |
+| `SystemLanguageModel(id:)` | N/A | `new SystemLanguageModel(id)` ✅ |
 | `model.generate(prompt:config:)` | `FoundationModels.generateText({...})` | `model.generate(prompt, config)` ✅ |
 | `LanguageModelSession(model:...)` | N/A | `new LanguageModelSession(modelId, config)` ✅ |
 | `session.generate(prompt:)` | N/A | `session.generate(prompt)` ✅ |
@@ -150,7 +150,7 @@ const result = await model.generate('test', { maxTokens: 100 });
 ## Testing
 
 All tests pass (16/16):
-- ✅ LanguageModel class exports and structure
+- ✅ SystemLanguageModel class exports and structure
 - ✅ LanguageModelSession class exports and structure
 - ✅ Instance creation and properties
 - ✅ Message history management

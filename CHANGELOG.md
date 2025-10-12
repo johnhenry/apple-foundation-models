@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-10-12
 
 ### Added
-- **LanguageModel class** - Instance-based API providing true 1-to-1 mapping with Swift
-  - Constructor: `new LanguageModel(id)`
-  - Static property: `LanguageModel.availableModels`
+- **SystemLanguageModel class** - Instance-based API providing true 1-to-1 mapping with Swift
+  - Constructor: `new SystemLanguageModel(id)`
+  - Static property: `SystemLanguageModel.availableModels`
   - Instance methods: `generate()`, `generateStream()`
   - Property getters: `getName()`, `getMaxTokens()`
 - **LanguageModelSession class** - Session-based API for conversational interactions
@@ -25,16 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MessageRole` enum (System, User, Assistant)
   - `SessionConfig` for session configuration
 - New examples:
-  - `instance-based-api.mjs` - Demonstrates LanguageModel class usage
+  - `instance-based-api.mjs` - Demonstrates SystemLanguageModel class usage
   - `session-based-api.mjs` - Demonstrates LanguageModelSession usage
 - Comprehensive API documentation in README
 - Updated IMPLEMENTATION.md with architecture details
 
 ### Removed
 - **FoundationModels class** - Deprecated static API removed (BREAKING CHANGE)
-  - Use `LanguageModel` class instead
-  - Migration: `FoundationModels.listAvailableModels()` → `LanguageModel.availableModels`
-  - Migration: `FoundationModels.generateText({...})` → `new LanguageModel(id).generate(...)`
+  - Use `SystemLanguageModel` class instead
+  - Migration: `FoundationModels.listAvailableModels()` → `SystemLanguageModel.availableModels`
+  - Migration: `FoundationModels.generateText({...})` → `new SystemLanguageModel(id).generate(...)`
 - Default export removed (use named exports instead)
 
 ### Changed

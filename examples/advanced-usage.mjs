@@ -7,7 +7,7 @@
  * 3. Multiple generation attempts with different parameters
  */
 
-import { LanguageModel } from '../dist/index.mjs';
+import { SystemLanguageModel } from '../dist/index.mjs';
 
 async function generateWithRetry(model, prompt, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -39,7 +39,7 @@ async function main() {
   try {
     // Check available models first
     console.log('📋 Checking available models...');
-    const models = await LanguageModel.availableModels;
+    const models = await SystemLanguageModel.availableModels;
     
     if (models.length === 0) {
       console.warn('⚠️  No models available. This may happen if:');
@@ -52,7 +52,7 @@ async function main() {
     console.log(`✓ Found ${models.length} model(s)\n`);
     
     // Create a model instance
-    const model = new LanguageModel(models[0].id);
+    const model = new SystemLanguageModel(models[0].id);
     console.log(`Using model: ${await model.getName()}\n`);
     
     // Generate with retry logic

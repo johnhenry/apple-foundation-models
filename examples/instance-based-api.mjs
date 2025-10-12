@@ -1,21 +1,28 @@
 /**
  * Instance-based API example for Apple Foundation Models
  * 
- * This example demonstrates the new 1-to-1 API mapping with the Swift LanguageModel class:
- * 1. Using LanguageModel.availableModels (static property)
- * 2. Creating LanguageModel instances
- * 3. Using instance methods for generation
+ * This example demonstrates the new 1-to-1 API mapping with the Swift SystemLanguageModel class:
+ * 1. Using SystemLanguageModel.default (static property)
+ * 2. Using SystemLanguageModel.availableModels (static property)
+ * 3. Creating SystemLanguageModel instances
+ * 4. Using instance methods for generation
  */
 
-import { LanguageModel } from '../dist/index.mjs';
+import { SystemLanguageModel } from '../dist/index.mjs';
 
 async function main() {
   try {
     console.log('🍎 Apple Foundation Models - Instance-based API Example\n');
     
-    // 1. List available models using static property
+    // 1. Access the default model
+    console.log('🔧 Accessing default model...');
+    const defaultModel = SystemLanguageModel.default;
+    console.log(`Default model ID: ${defaultModel.id}`);
+    console.log(`Is available: ${defaultModel.isAvailable}\n`);
+    
+    // 2. List available models using static property
     console.log('📋 Listing available models...');
-    const models = await LanguageModel.availableModels;
+    const models = await SystemLanguageModel.availableModels;
     
     console.log(`Found ${models.length} model(s):\n`);
     models.forEach((model, index) => {
@@ -29,19 +36,20 @@ async function main() {
       process.exit(1);
     }
     
-    // 2. Create a LanguageModel instance
-    console.log('🔧 Creating LanguageModel instance...');
-    const model = new LanguageModel(models[0].id);
+    // 3. Create a SystemLanguageModel instance
+    console.log('🔧 Creating SystemLanguageModel instance...');
+    const model = new SystemLanguageModel(models[0].id);
     console.log(`Created model with ID: ${model.id}\n`);
     
-    // 3. Get model properties
+    // 4. Get model properties
     console.log('📊 Getting model properties...');
     const name = await model.getName();
     const maxTokens = await model.getMaxTokens();
     console.log(`Model Name: ${name}`);
-    console.log(`Max Tokens: ${maxTokens}\n`);
+    console.log(`Max Tokens: ${maxTokens}`);
+    console.log(`Is Available: ${model.isAvailable}\n`);
     
-    // 4. Generate text using instance method
+    // 5. Generate text using instance method
     console.log('✨ Generating text with instance method...');
     const result = await model.generate('Write a haiku about TypeScript', {
       maxTokens: 100,
@@ -52,7 +60,7 @@ async function main() {
     console.log(result.text);
     console.log(`Finish reason: ${result.finishReason}\n`);
     
-    // 5. Generate another response with the same model instance
+    // 6. Generate another response with the same model instance
     console.log('✨ Generating another response...');
     const result2 = await model.generate('Explain what Apple Foundation Models are in one sentence.', {
       maxTokens: 50,
@@ -63,16 +71,16 @@ async function main() {
     console.log(result2.text);
     console.log(`Finish reason: ${result2.finishReason}\n`);
     
-    // 6. Create multiple model instances
+    // 7. Create multiple model instances
     if (models.length > 1) {
       console.log('🔄 Creating another model instance...');
-      const model2 = new LanguageModel(models[1].id);
+      const model2 = new SystemLanguageModel(models[1].id);
       const name2 = await model2.getName();
       console.log(`Created second model: ${name2}\n`);
     }
     
     console.log('✅ Example completed successfully!');
-    console.log('\n💡 This instance-based API provides a 1-to-1 mapping with Swift\'s LanguageModel class.');
+    console.log('\n💡 This instance-based API provides a 1-to-1 mapping with Swift\'s SystemLanguageModel class.');
     
   } catch (error) {
     console.error('❌ Error:', error.message);

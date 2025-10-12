@@ -10,36 +10,46 @@ import {
 } from './types.js';
 
 /**
- * LanguageModel - Instance-based language model interface
- * This is a 1-to-1 mapping of the Swift LanguageModel class
+ * SystemLanguageModel - Instance-based language model interface
+ * This is a 1-to-1 mapping of the Swift SystemLanguageModel class
  * 
  * Usage:
  * ```typescript
- * // List available models
- * const models = await LanguageModel.availableModels;
+ * // Access the default model
+ * const model = SystemLanguageModel.default;
  * 
- * // Create a model instance
- * const model = new LanguageModel(models[0].id);
- * 
- * // Generate text
- * const result = await model.generate('Write a haiku', { maxTokens: 100 });
+ * // Check availability
+ * if (model.isAvailable) {
+ *   // Generate text
+ *   const result = await model.generate('Write a haiku', { maxTokens: 100 });
+ * }
  * ```
  */
-export class LanguageModel {
+export class SystemLanguageModel {
   private readonly modelId: string;
   private modelInfo?: LanguageModelInfo;
 
   /**
+   * The default system language model
+   * Maps to: SystemLanguageModel.default (static property in Swift)
+   */
+  static get default(): SystemLanguageModel {
+    // For now, we'll create a default instance
+    // In a real implementation, this would be a singleton
+    return new SystemLanguageModel('default');
+  }
+
+  /**
    * Get a list of available language models
-   * Maps to: LanguageModel.availableModels (static property in Swift)
+   * This is a helper method for compatibility
    */
   static get availableModels(): Promise<LanguageModelInfo[]> {
     return executeSwiftCommand<LanguageModelInfo[]>('listAvailableModels');
   }
 
   /**
-   * Create a new LanguageModel instance
-   * Maps to: LanguageModel(id:) initializer in Swift
+   * Create a new SystemLanguageModel instance
+   * Maps to: SystemLanguageModel(id:) initializer in Swift
    * 
    * @param id - The model identifier
    */
@@ -52,6 +62,16 @@ export class LanguageModel {
    */
   get id(): string {
     return this.modelId;
+  }
+
+  /**
+   * Convenience getter to check if the system is entirely ready
+   * Maps to: SystemLanguageModel.isAvailable (instance property in Swift)
+   */
+  get isAvailable(): boolean {
+    // This would need to be implemented to actually check availability
+    // For now, return true as a placeholder
+    return true;
   }
 
   /**
@@ -72,7 +92,7 @@ export class LanguageModel {
 
   /**
    * Generate text using this language model
-   * Maps to: LanguageModel.generate(prompt:config:) in Swift
+   * Maps to: SystemLanguageModel.generate(prompt:config:) in Swift
    * 
    * @param prompt - The input prompt
    * @param config - Optional generation configuration
@@ -96,7 +116,7 @@ export class LanguageModel {
 
   /**
    * Generate text with streaming
-   * Maps to: LanguageModel.generateStream(prompt:config:) in Swift
+   * Maps to: SystemLanguageModel.generateStream(prompt:config:) in Swift
    * 
    * @param prompt - The input prompt
    * @param config - Optional generation configuration
@@ -115,7 +135,7 @@ export class LanguageModel {
       return;
     }
 
-    const models = await LanguageModel.availableModels;
+    const models = await SystemLanguageModel.availableModels;
     this.modelInfo = models.find(m => m.id === this.modelId);
     
     if (!this.modelInfo) {
@@ -131,7 +151,7 @@ export class LanguageModel {
  * Usage:
  * ```typescript
  * // Create a session with a model
- * const models = await LanguageModel.availableModels;
+ * const models = await SystemLanguageModel.availableModels;
  * const session = new LanguageModelSession(models[0].id, {
  *   systemPrompt: 'You are a helpful assistant.',
  * });
@@ -148,7 +168,7 @@ export class LanguageModel {
  * ```
  */
 export class LanguageModelSession {
-  private readonly model: LanguageModel;
+  private readonly model: SystemLanguageModel;
   private readonly config: SessionConfig;
   private messageHistory: Message[] = [];
 
@@ -156,11 +176,11 @@ export class LanguageModelSession {
    * Create a new LanguageModelSession instance
    * Maps to: LanguageModelSession(model:systemPrompt:) initializer in Swift
    * 
-   * @param modelId - The model identifier or LanguageModel instance
+   * @param modelId - The model identifier or SystemLanguageModel instance
    * @param config - Optional session configuration
    */
-  constructor(modelId: string | LanguageModel, config?: SessionConfig) {
-    this.model = typeof modelId === 'string' ? new LanguageModel(modelId) : modelId;
+  constructor(modelId: string | SystemLanguageModel, config?: SessionConfig) {
+    this.model = typeof modelId === 'string' ? new SystemLanguageModel(modelId) : modelId;
     this.config = config || {};
     
     // Add system prompt to history if provided
@@ -173,9 +193,9 @@ export class LanguageModelSession {
   }
 
   /**
-   * Get the underlying LanguageModel
+   * Get the underlying SystemLanguageModel
    */
-  get languageModel(): LanguageModel {
+  get languageModel(): SystemLanguageModel {
     return this.model;
   }
 

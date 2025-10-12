@@ -7,7 +7,7 @@
  * 3. Generating text with specific model and parameters
  */
 
-import { LanguageModel } from '../dist/index.mjs';
+import { SystemLanguageModel } from '../dist/index.mjs';
 
 async function main() {
   try {
@@ -15,7 +15,7 @@ async function main() {
     
     // 1. List available models
     console.log('📋 Listing available models...');
-    const models = await LanguageModel.availableModels;
+    const models = await SystemLanguageModel.availableModels;
     
     console.log(`Found ${models.length} model(s):\n`);
     models.forEach((model, index) => {
@@ -30,8 +30,8 @@ async function main() {
     }
     
     // 2. Create a model instance
-    console.log('🔧 Creating LanguageModel instance...');
-    const model = new LanguageModel(models[0].id);
+    console.log('🔧 Creating SystemLanguageModel instance...');
+    const model = new SystemLanguageModel(models[0].id);
     console.log(`Using model: ${await model.getName()}\n`);
     
     // 3. Generate text with default settings

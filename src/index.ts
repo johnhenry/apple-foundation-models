@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-export { LanguageModel, LanguageModelSession } from './foundation-models.js';
+export { SystemLanguageModel, LanguageModelSession } from './foundation-models.js';
 export type {
   LanguageModelInfo,
   GenerationConfig,

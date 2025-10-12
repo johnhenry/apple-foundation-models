@@ -8,7 +8,7 @@
  * 4. Resetting the session
  */
 
-import { LanguageModel, LanguageModelSession } from '../dist/index.mjs';
+import { SystemLanguageModel, LanguageModelSession } from '../dist/index.mjs';
 
 async function main() {
   try {
@@ -16,7 +16,7 @@ async function main() {
     
     // 1. Get available models
     console.log('📋 Listing available models...');
-    const models = await LanguageModel.availableModels;
+    const models = await SystemLanguageModel.availableModels;
     
     if (models.length === 0) {
       console.log('❌ No models available. Please ensure you have models installed.');
@@ -92,9 +92,9 @@ async function main() {
     const response5 = await session2.generate('Write a haiku about code');
     console.log(`Assistant: ${response5.text}\n`);
     
-    // 9. Create session using existing LanguageModel instance
-    console.log('🔧 Creating session from LanguageModel instance...');
-    const modelInstance = new LanguageModel(models[0].id);
+    // 9. Create session using existing SystemLanguageModel instance
+    console.log('🔧 Creating session from SystemLanguageModel instance...');
+    const modelInstance = new SystemLanguageModel(models[0].id);
     const session3 = new LanguageModelSession(modelInstance, {
       systemPrompt: 'You are a poet who writes only in haikus.',
     });

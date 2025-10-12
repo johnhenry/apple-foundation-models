@@ -6,7 +6,7 @@ This document provides a comprehensive overview of the Apple Foundation Models f
 
 A complete TypeScript library that provides a 1-to-1 wrapper for Apple's FoundationModels framework, enabling JavaScript/TypeScript developers to use Apple's AI models in Node.js applications.
 
-**Major Update (v0.1.0):** Now includes proper instance-based `LanguageModel` class and `LanguageModelSession` for conversational interactions, providing true 1-to-1 API mapping with Swift.
+**Major Update (v0.1.0):** Now includes proper instance-based `SystemLanguageModel` class and `LanguageModelSession` for conversational interactions, providing true 1-to-1 API mapping with Swift.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 │  ┌─────────────────────────────────────────┐   │
 │  │   TypeScript API (foundation-models.ts) │   │
 │  │                                          │   │
-│  │  LanguageModel (instance-based):        │   │
+│  │  SystemLanguageModel (instance-based):        │   │
 │  │  - static availableModels               │   │
 │  │  - constructor(id)                      │   │
 │  │  - generate(prompt, config)             │   │
@@ -60,7 +60,7 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
                  │
 ┌────────────────▼─────────────────────────────────┐
 │           Apple FoundationModels SDK             │
-│  - LanguageModel class                          │
+│  - SystemLanguageModel class                          │
 │  - LanguageModelSession class                   │
 │  - Text generation                              │
 │  - Model management                             │
@@ -94,12 +94,12 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 ### Source Files (src/)
 
 1. **src/index.ts** - Main entry point
-   - Exports LanguageModel, LanguageModelSession, and FoundationModels classes
+   - Exports SystemLanguageModel, LanguageModelSession, and FoundationModels classes
    - Re-exports types and enums
    - Provides legacy default export
 
 2. **src/types.ts** - TypeScript type definitions
-   - LanguageModelInfo - Model information interface
+   - SystemLanguageModelInfo - Model information interface
    - GenerationConfig - Generation configuration options
    - GenerationResult - Result from text generation
    - GenerateTextParams - Parameters for legacy API
@@ -110,9 +110,9 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
    - SwiftResponse - Internal response wrapper
 
 3. **src/foundation-models.ts** - Core API implementation
-   - **LanguageModel class** - Instance-based API (1-to-1 Swift mapping)
+   - **SystemLanguageModel class** - Instance-based API (1-to-1 Swift mapping)
      - Static property: `availableModels`
-     - Constructor: `new LanguageModel(id)`
+     - Constructor: `new SystemLanguageModel(id)`
      - Instance methods: `generate()`, `generateStream()`
      - Property getters: `getName()`, `getMaxTokens()`
    - **LanguageModelSession class** - Session-based conversational API
@@ -122,7 +122,7 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
      - Maintains conversation history and context
    - **FoundationModels class** - Legacy static API (deprecated)
      - Backward compatibility wrapper
-     - Delegates to new LanguageModel class
+     - Delegates to new SystemLanguageModel class
 
 4. **src/executor.ts** - Swift process executor
    - Spawns Swift wrapper
@@ -172,8 +172,8 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
    - Generate text with default settings
    - Generate with custom parameters
 
-2. **examples/instance-based-api.mjs** - LanguageModel class example
-   - Using `LanguageModel.availableModels` static property
+2. **examples/instance-based-api.mjs** - SystemLanguageModel class example
+   - Using `SystemLanguageModel.availableModels` static property
    - Creating model instances
    - Using instance methods for generation
    - Accessing model properties
@@ -196,7 +196,7 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 1. **README.md** - Main documentation
    - Feature overview
    - Installation instructions
-   - **NEW:** Instance-based API examples (LanguageModel)
+   - **NEW:** Instance-based API examples (SystemLanguageModel)
    - **NEW:** Session-based API examples (LanguageModelSession)
    - Legacy API examples (deprecated)
    - **UPDATED:** Comprehensive API reference for all classes
@@ -242,7 +242,7 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 
 ### ✅ 1-to-1 API Mapping
 - **NEW:** Direct translation of Swift FoundationModels API to JavaScript
-- **NEW:** Instance-based LanguageModel class matching Swift patterns
+- **NEW:** Instance-based SystemLanguageModel class matching Swift patterns
 - **NEW:** LanguageModelSession for conversational interactions
 - Preserves method names and parameter structures
 - TypeScript types match Swift interfaces

@@ -5,31 +5,42 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { LanguageModel, LanguageModelSession, FinishReason, MessageRole } from '../dist/index.mjs';
+import { SystemLanguageModel, LanguageModelSession, FinishReason, MessageRole } from '../dist/index.mjs';
 
-// Test new LanguageModel class
-test('module exports LanguageModel class', () => {
-  assert.ok(LanguageModel, 'LanguageModel should be exported');
-  assert.strictEqual(typeof LanguageModel, 'function', 'LanguageModel should be a class/constructor');
+// Test SystemLanguageModel class
+test('module exports SystemLanguageModel class', () => {
+  assert.ok(SystemLanguageModel, 'SystemLanguageModel should be exported');
+  assert.strictEqual(typeof SystemLanguageModel, 'function', 'SystemLanguageModel should be a class/constructor');
 });
 
-test('LanguageModel has availableModels static property', () => {
-  assert.ok('availableModels' in LanguageModel, 'LanguageModel should have availableModels static property');
-  assert.strictEqual(typeof LanguageModel.availableModels, 'object', 'availableModels should return a Promise');
+test('SystemLanguageModel has default static property', () => {
+  assert.ok('default' in SystemLanguageModel, 'SystemLanguageModel should have default static property');
+  const defaultModel = SystemLanguageModel.default;
+  assert.ok(defaultModel instanceof SystemLanguageModel, 'default should be a SystemLanguageModel instance');
 });
 
-test('LanguageModel can be instantiated', () => {
-  const model = new LanguageModel('test-model-id');
-  assert.ok(model, 'LanguageModel instance should be created');
+test('SystemLanguageModel has availableModels static property', () => {
+  assert.ok('availableModels' in SystemLanguageModel, 'SystemLanguageModel should have availableModels static property');
+  assert.strictEqual(typeof SystemLanguageModel.availableModels, 'object', 'availableModels should return a Promise');
+});
+
+test('SystemLanguageModel can be instantiated', () => {
+  const model = new SystemLanguageModel('test-model-id');
+  assert.ok(model, 'SystemLanguageModel instance should be created');
   assert.strictEqual(model.id, 'test-model-id', 'Model ID should match constructor argument');
 });
 
-test('LanguageModel instance has expected methods', () => {
-  const model = new LanguageModel('test-model-id');
+test('SystemLanguageModel instance has expected methods', () => {
+  const model = new SystemLanguageModel('test-model-id');
   assert.ok(typeof model.generate === 'function', 'generate should be a function');
   assert.ok(typeof model.generateStream === 'function', 'generateStream should be a function');
   assert.ok(typeof model.getName === 'function', 'getName should be a function');
   assert.ok(typeof model.getMaxTokens === 'function', 'getMaxTokens should be a function');
+});
+
+test('SystemLanguageModel instance has isAvailable property', () => {
+  const model = new SystemLanguageModel('test-model-id');
+  assert.strictEqual(typeof model.isAvailable, 'boolean', 'isAvailable should be a boolean');
 });
 
 // Test LanguageModelSession class
@@ -44,11 +55,11 @@ test('LanguageModelSession can be instantiated with model ID', () => {
   assert.ok(session.languageModel, 'Session should have languageModel property');
 });
 
-test('LanguageModelSession can be instantiated with LanguageModel instance', () => {
-  const model = new LanguageModel('test-model-id');
+test('LanguageModelSession can be instantiated with SystemLanguageModel instance', () => {
+  const model = new SystemLanguageModel('test-model-id');
   const session = new LanguageModelSession(model);
-  assert.ok(session, 'LanguageModelSession instance should be created with LanguageModel');
-  assert.strictEqual(session.languageModel, model, 'Session should use provided LanguageModel instance');
+  assert.ok(session, 'LanguageModelSession instance should be created with SystemLanguageModel');
+  assert.strictEqual(session.languageModel, model, 'Session should use provided SystemLanguageModel instance');
 });
 
 test('LanguageModelSession has expected methods', () => {
