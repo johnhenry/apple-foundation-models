@@ -6,6 +6,8 @@ import {
   type GenerationOptions,
   type TranscriptEntry,
   type Response,
+  type Tool,
+  type ToolCall,
   Availability,
   UseCase,
   Instructions,
@@ -218,7 +220,7 @@ export class SystemLanguageModel {
 export class LanguageModelSession {
   private readonly model: SystemLanguageModel;
   private readonly guardrails: Guardrails;
-  private readonly tools: any[];
+  private readonly tools: Tool[];
   private readonly instructions?: Instructions;
   private transcriptHistory: TranscriptEntry[] = [];
   private _isResponding: boolean = false;
@@ -231,20 +233,42 @@ export class LanguageModelSession {
    * - init(instructions:)
    * - init(model:)
    * - init(model:instructions:)
-   * - init(model:tools:instructions:)
+   * - init(model:guardrails:tools:instructions:)
    *
    * Note: The actual Swift API does NOT have a separate `guardrails` parameter.
    * Guardrails are managed internally by the framework.
+   *
+   * IMPORTANT: Tool execution is not yet fully implemented. Tools can be registered
+   * but automatic execution during respond/streamResponse is pending architecture updates.
+   * For now, you must manually handle tool calls from the response transcript.
    *
    * @param model - The language model to use (defaults to SystemLanguageModel.default)
    * @param guardrails - Kept for backwards compatibility, but ignored (guardrails are internal)
    * @param tools - Array of tools available for the model to call (defaults to [])
    * @param instructions - Context, role, and preferences for model responses (optional)
+   *
+   * @example
+   * ```typescript
+   * class WeatherTool implements Tool {
+   *   name = 'getWeather';
+   *   description = 'Gets current weather';
+   *   async call(args: { city: string }) {
+   *     return new ToolOutput(`Sunny in ${args.city}`);
+   *   }
+   * }
+   *
+   * const session = new LanguageModelSession(
+   *   SystemLanguageModel.default,
+   *   Guardrails.default,
+   *   [new WeatherTool()],
+   *   new Instructions('You can check weather')
+   * );
+   * ```
    */
   constructor(
     model: SystemLanguageModel = SystemLanguageModel.default,
     guardrails: Guardrails = Guardrails.default,
-    tools: any[] = [],
+    tools: Tool[] = [],
     instructions?: Instructions
   ) {
     this.model = model;

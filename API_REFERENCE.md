@@ -760,8 +760,8 @@ type TranscriptEntry =
   | { type: 'prompt', content: string }
   | { type: 'response', content: string }
   | { type: 'instructions', instructions: Instructions }
-  | { type: 'toolCalls', calls: any[] }
-  | { type: 'toolOutput', output: any };
+  | { type: 'toolCalls', calls: ToolCall[] }
+  | { type: 'toolOutput', output: ToolOutput };
 ```
 
 ### Availability
@@ -794,6 +794,131 @@ enum SamplingMode {
   Random = 'random'
 }
 ```
+
+### Tool
+
+The Tool interface enables the model to perform dynamic actions and fetch runtime data.
+
+**TypeScript Interface**:
+```typescript
+interface Tool {
+  /** Unique identifier for the tool */
+  name: string;
+
+  /** Description of what the tool does */
+  description: string;
+
+  /** Executes the tool with provided arguments */
+  call(arguments: Record<string, any>): Promise<ToolOutput>;
+}
+```
+
+**ToolCall Type**:
+```typescript
+interface ToolCall {
+  name: string;
+  arguments: Record<string, any>;
+}
+```
+
+**ToolOutput Class**:
+```typescript
+class ToolOutput {
+  constructor(value: string | any);
+  readonly value: string | any;
+}
+```
+
+#### Implementation Status
+
+**IMPORTANT**: The Tool interface is currently defined for type compatibility, but automatic tool execution during `respond()` or `streamResponse()` calls is not yet implemented. This requires architecture changes to support bidirectional communication between the TypeScript and Swift layers.
+
+**Current Capabilities**:
+- ✅ Tool interface and types are defined
+- ✅ Tools can be passed to `LanguageModelSession` constructor
+- ✅ Tool definitions are type-checked at compile time
+- ❌ Automatic tool execution is not yet implemented
+- ❌ Tool calls in responses need manual handling
+
+**Workaround** - Manual Tool Execution:
+
+<table>
+<tr><th>Swift</th><th>JavaScript/TypeScript</th></tr>
+<tr>
+<td>
+
+```swift
+// Automatic in Swift
+final class WeatherTool: Tool {
+    let name = "getWeather"
+    let description = "Get weather"
+
+    func call(arguments: Arguments) async throws -> ToolOutput {
+        let weather = await fetch(arguments.city)
+        return ToolOutput(weather)
+    }
+}
+
+let session = LanguageModelSession(
+    tools: [WeatherTool()]
+)
+
+// Tools are called automatically
+let response = try await session.respond(
+    to: "What's the weather in SF?"
+)
+```
+
+</td>
+<td>
+
+```typescript
+// Manual execution required
+class WeatherTool implements Tool {
+  name = 'getWeather';
+  description = 'Get weather';
+
+  async call(args: { city: string }) {
+    const weather = await fetch(args.city);
+    return new ToolOutput(weather);
+  }
+}
+
+const tools = [new WeatherTool()];
+const session = new LanguageModelSession(
+  SystemLanguageModel.default,
+  Guardrails.default,
+  tools
+);
+
+// Get response - may contain tool calls
+let response = await session.respond(
+  "What's the weather in SF?"
+);
+
+// Check for tool calls in transcript
+const toolCalls = response.transcriptEntries
+  .filter(e => e.type === 'toolCalls')
+  .flatMap(e => e.calls);
+
+// Execute tools manually
+for (const call of toolCalls) {
+  const tool = tools.find(t => t.name === call.name);
+  if (tool) {
+    const output = await tool.call(call.arguments);
+    // Continue conversation with result
+    response = await session.respond(
+      `Tool ${call.name} returned: ${output.value}`
+    );
+  }
+}
+```
+
+</td>
+</tr>
+</table>
+
+**Note**: Automatic tool execution will be implemented in a future version when the architecture is updated to support persistent sessions.
 
 ---
 
@@ -1050,7 +1175,8 @@ console.log();
 | `Instructions` | `Instructions` |
 | `Guardrails` | `Guardrails` |
 | `TranscriptEntry` | `TranscriptEntry` (union type) |
-| `Tool` | `any` (not yet implemented) |
+| `Tool` | `Tool` (interface - see Tool section below) |
+| `ToolCall` | `ToolCall` |
 | `ToolOutput` | `ToolOutput` |
 | `UseCase` | `UseCase` (enum) |
 | `SamplingMode` | `SamplingMode` (enum) |
