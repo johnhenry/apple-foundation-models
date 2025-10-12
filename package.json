@@ -1,6 +1,6 @@
 {
   "name": "apple-foundation-models",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "1-to-1 TypeScript wrapper for Apple's Foundation Models, enabling use in Node.js and other JavaScript frameworks",
   "main": "dist/index.cjs",

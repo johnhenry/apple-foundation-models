@@ -1,28 +1,87 @@
 import { spawn } from 'child_process';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { accessSync, constants } from 'fs';
+import { accessSync, constants, existsSync, readFileSync } from 'fs';
 import type { SwiftResponse } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
+ * Find the apple-foundation-models package root directory
+ * This works even when the code is bundled into another package
+ */
+function findPackageRoot(): string {
+  // Start from current directory and walk up to find node_modules/apple-foundation-models
+  let currentDir = __dirname;
+
+  // Try up to 10 levels up (should be more than enough)
+  for (let i = 0; i < 10; i++) {
+    // Check if we're inside apple-foundation-models package
+    const packageJsonPath = join(currentDir, 'package.json');
+    if (existsSync(packageJsonPath)) {
+      try {
+        // On some systems, we might not have read permission, so wrap in try-catch
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+        if (packageJson.name === 'apple-foundation-models') {
+          return currentDir;
+        }
+      } catch {
+        // Ignore and continue searching
+      }
+    }
+
+    // Check for node_modules/apple-foundation-models
+    const nodeModulesPath = join(currentDir, 'node_modules', 'apple-foundation-models');
+    if (existsSync(nodeModulesPath)) {
+      return nodeModulesPath;
+    }
+
+    // Move up one directory
+    const parentDir = dirname(currentDir);
+    if (parentDir === currentDir) {
+      // Reached root, can't go further
+      break;
+    }
+    currentDir = parentDir;
+  }
+
+  // Fallback to relative path from __dirname (works in non-bundled scenarios)
+  return join(__dirname, '..');
+}
+
+/**
  * Get the path to the Swift executable
  */
 export function getSwiftExecutablePath(): string {
-  // In production, the executable is in swift/.build/release
-  // During development, it might be in swift/.build/debug
-  const productionPath = join(__dirname, '..', 'swift', '.build', 'release', 'AppleFoundationModelsWrapper');
-  const debugPath = join(__dirname, '..', 'swift', '.build', 'debug', 'AppleFoundationModelsWrapper');
-  
-  // Try production path first
-  try {
-    accessSync(productionPath, constants.X_OK);
-    return productionPath;
-  } catch {
-    return debugPath;
+  // Swift Package Manager creates architecture-specific directories
+  // Format: .build/{arch}-{os}-{sdk}/{configuration}/ExecutableName
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
+  const platform = `${arch}-apple-macosx`;
+
+  // Find the package root (works even when bundled)
+  const packageRoot = findPackageRoot();
+
+  // Build paths relative to package root
+  const productionArchPath = join(packageRoot, 'swift', '.build', platform, 'release', 'AppleFoundationModelsWrapper');
+  const debugArchPath = join(packageRoot, 'swift', '.build', platform, 'debug', 'AppleFoundationModelsWrapper');
+  const productionPath = join(packageRoot, 'swift', '.build', 'release', 'AppleFoundationModelsWrapper');
+  const debugPath = join(packageRoot, 'swift', '.build', 'debug', 'AppleFoundationModelsWrapper');
+
+  // Try paths in order: production with arch, debug with arch, production without arch, debug without arch
+  const paths = [productionArchPath, debugArchPath, productionPath, debugPath];
+
+  for (const path of paths) {
+    try {
+      accessSync(path, constants.X_OK);
+      return path;
+    } catch {
+      // Try next path
+    }
   }
+
+  // If none found, return the first path (will fail with better error message)
+  return productionArchPath;
 }
 
 /**

@@ -16,10 +16,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "AppleFoundationModelsWrapper",
-            dependencies: [],
-            swiftSettings: [
-                .enableUpcomingFeature("BareSlashRegexLiterals")
-            ]
+            dependencies: []
         )
     ]
 )

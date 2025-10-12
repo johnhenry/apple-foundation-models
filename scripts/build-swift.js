@@ -42,12 +42,19 @@ console.log('🔨 Building Swift wrapper...');
 console.log(`   Working directory: ${swiftDir}`);
 
 try {
+  // Clean any existing build artifacts to avoid PCH cache path issues
+  console.log('   Cleaning previous build artifacts...');
+  execSync('rm -rf .build', {
+    cwd: swiftDir,
+    stdio: 'ignore',
+  });
+
   // Build in release mode
   execSync('swift build -c release', {
     cwd: swiftDir,
     stdio: 'inherit',
   });
-  
+
   console.log('✓ Swift build completed successfully');
 } catch (error) {
   console.error('\n❌ Failed to build Swift wrapper');
