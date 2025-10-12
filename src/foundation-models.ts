@@ -3,6 +3,9 @@ import {
   type LanguageModelInfo,
   type GenerationResult,
   type GenerationConfig,
+  type SessionConfig,
+  type Message,
+  MessageRole,
   FinishReason,
 } from './types.js';
 
@@ -118,6 +121,161 @@ export class LanguageModel {
     if (!this.modelInfo) {
       throw new Error(`Model with id '${this.modelId}' not found`);
     }
+  }
+}
+
+/**
+ * LanguageModelSession - Session-based interface for conversational interactions
+ * This is a 1-to-1 mapping of the Swift LanguageModelSession class
+ * 
+ * Usage:
+ * ```typescript
+ * // Create a session with a model
+ * const models = await LanguageModel.availableModels;
+ * const session = new LanguageModelSession(models[0].id, {
+ *   systemPrompt: 'You are a helpful assistant.',
+ * });
+ * 
+ * // Send messages and get responses
+ * const response1 = await session.generate('Hello!');
+ * const response2 = await session.generate('Tell me about TypeScript');
+ * 
+ * // Access message history
+ * const history = session.messages;
+ * 
+ * // Reset the session
+ * session.reset();
+ * ```
+ */
+export class LanguageModelSession {
+  private readonly model: LanguageModel;
+  private readonly config: SessionConfig;
+  private messageHistory: Message[] = [];
+
+  /**
+   * Create a new LanguageModelSession instance
+   * Maps to: LanguageModelSession(model:systemPrompt:) initializer in Swift
+   * 
+   * @param modelId - The model identifier or LanguageModel instance
+   * @param config - Optional session configuration
+   */
+  constructor(modelId: string | LanguageModel, config?: SessionConfig) {
+    this.model = typeof modelId === 'string' ? new LanguageModel(modelId) : modelId;
+    this.config = config || {};
+    
+    // Add system prompt to history if provided
+    if (this.config.systemPrompt) {
+      this.messageHistory.push({
+        role: MessageRole.System,
+        content: this.config.systemPrompt,
+      });
+    }
+  }
+
+  /**
+   * Get the underlying LanguageModel
+   */
+  get languageModel(): LanguageModel {
+    return this.model;
+  }
+
+  /**
+   * Get the message history for this session
+   */
+  get messages(): readonly Message[] {
+    return [...this.messageHistory];
+  }
+
+  /**
+   * Generate a response in the context of this session
+   * Maps to: LanguageModelSession.generate(prompt:) in Swift
+   * 
+   * @param prompt - The user's input prompt
+   * @param config - Optional generation configuration (overrides session defaults)
+   * @returns Promise resolving to the generation result
+   */
+  async generate(prompt: string, config?: GenerationConfig): Promise<GenerationResult> {
+    // Add user message to history
+    this.messageHistory.push({
+      role: MessageRole.User,
+      content: prompt,
+    });
+
+    // Build context from message history
+    const contextPrompt = this.buildContextPrompt();
+
+    // Merge configs (parameter config overrides session config)
+    const mergedConfig = {
+      ...this.config.generationConfig,
+      ...config,
+    };
+
+    // Generate response
+    const result = await this.model.generate(contextPrompt, mergedConfig);
+
+    // Add assistant response to history
+    this.messageHistory.push({
+      role: MessageRole.Assistant,
+      content: result.text,
+    });
+
+    return result;
+  }
+
+  /**
+   * Generate a response with streaming
+   * Maps to: LanguageModelSession.generateStream(prompt:) in Swift
+   * 
+   * @param prompt - The user's input prompt
+   * @param config - Optional generation configuration
+   * @returns AsyncIterableIterator that yields text chunks
+   */
+  async *generateStream(prompt: string, config?: GenerationConfig): AsyncIterableIterator<string> {
+    // Add user message to history
+    this.messageHistory.push({
+      role: MessageRole.User,
+      content: prompt,
+    });
+
+    // TODO: Implement streaming support with proper history management
+    throw new Error('Streaming is not yet implemented for sessions. Use generate() instead.');
+  }
+
+  /**
+   * Reset the session, clearing all message history
+   * Maps to: LanguageModelSession.reset() in Swift
+   */
+  reset(): void {
+    this.messageHistory = [];
+    
+    // Re-add system prompt if it was configured
+    if (this.config.systemPrompt) {
+      this.messageHistory.push({
+        role: MessageRole.System,
+        content: this.config.systemPrompt,
+      });
+    }
+  }
+
+  /**
+   * Build a context prompt from message history
+   * This creates a formatted prompt that includes the conversation context
+   */
+  private buildContextPrompt(): string {
+    return this.messageHistory
+      .map(msg => {
+        switch (msg.role) {
+          case MessageRole.System:
+            return `System: ${msg.content}`;
+          case MessageRole.User:
+            return `User: ${msg.content}`;
+          case MessageRole.Assistant:
+            return `Assistant: ${msg.content}`;
+          default:
+            return msg.content;
+        }
+      })
+      .join('\n\n');
   }
 }
 

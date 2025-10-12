@@ -53,6 +53,38 @@ export interface GenerationResult {
 }
 
 /**
+ * Role of a message in a conversation
+ */
+export enum MessageRole {
+  /** System message that sets the context */
+  System = 'system',
+  /** Message from the user */
+  User = 'user',
+  /** Message from the assistant */
+  Assistant = 'assistant',
+}
+
+/**
+ * A message in a conversation
+ */
+export interface Message {
+  /** Role of the message sender */
+  role: MessageRole;
+  /** Content of the message */
+  content: string;
+}
+
+/**
+ * Configuration for LanguageModelSession
+ */
+export interface SessionConfig {
+  /** System prompt to set the context */
+  systemPrompt?: string;
+  /** Default generation configuration for the session */
+  generationConfig?: GenerationConfig;
+}
+
+/**
  * Parameters for generating text
  */
 export interface GenerateTextParams {
