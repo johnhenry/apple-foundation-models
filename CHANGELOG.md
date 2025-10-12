@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-10-12
+
+### Added
+- **LanguageModel class** - Instance-based API providing true 1-to-1 mapping with Swift
+  - Constructor: `new LanguageModel(id)`
+  - Static property: `LanguageModel.availableModels`
+  - Instance methods: `generate()`, `generateStream()`
+  - Property getters: `getName()`, `getMaxTokens()`
+- **LanguageModelSession class** - Session-based API for conversational interactions
+  - Maintains message history across multiple turns
+  - Supports system prompts for context setting
+  - Methods: `generate()`, `generateStream()`, `reset()`
+  - Properties: `languageModel`, `messages`
+- New TypeScript types and interfaces:
+  - `Message` interface for conversation messages
+  - `MessageRole` enum (System, User, Assistant)
+  - `SessionConfig` for session configuration
+- New examples:
+  - `instance-based-api.mjs` - Demonstrates LanguageModel class usage
+  - `session-based-api.mjs` - Demonstrates LanguageModelSession usage
+- Comprehensive API documentation in README
+- Updated IMPLEMENTATION.md with architecture details
+
+### Changed
+- **FoundationModels class** marked as deprecated (still available for backward compatibility)
+- All static API methods now delegate to new instance-based classes
+- README restructured to highlight new recommended APIs
+- Export structure updated to include new classes and types
+
+### Deprecated
+- `FoundationModels` static API (use `LanguageModel` and `LanguageModelSession` instead)
+
+### Known Limitations
+- Streaming generation not yet implemented
+- Only works on macOS 15.0 (Sequoia) or later
+- Requires active internet connection for model downloads
+- Session history is maintained in memory (not persisted)
+
 ## [0.0.0] - 2025-10-12
 
 ### Added
@@ -27,5 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Only works on macOS 15.0 (Sequoia) or later
 - Requires active internet connection for model downloads
 
-[Unreleased]: https://github.com/johnhenry/apple-foundation-models/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/johnhenry/apple-foundation-models/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/johnhenry/apple-foundation-models/compare/v0.0.0...v0.1.0
 [0.0.0]: https://github.com/johnhenry/apple-foundation-models/releases/tag/v0.0.0
