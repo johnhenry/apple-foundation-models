@@ -37,18 +37,27 @@ npm run build:swift
 
 ## Usage
 
-### Basic Example
+### Instance-based API (Recommended - 1-to-1 Swift mapping)
+
+The new `LanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
 
 ```typescript
-import { FoundationModels } from 'apple-foundation-models';
+import { LanguageModel } from 'apple-foundation-models';
 
-// List available models
-const models = await FoundationModels.listAvailableModels();
+// List available models (static property)
+const models = await LanguageModel.availableModels;
 console.log('Available models:', models);
 
-// Generate text
-const result = await FoundationModels.generateText({
-  prompt: 'Write a haiku about TypeScript',
+// Create a model instance
+const model = new LanguageModel(models[0].id);
+
+// Get model properties
+console.log('Model ID:', model.id);
+console.log('Model Name:', await model.getName());
+console.log('Max Tokens:', await model.getMaxTokens());
+
+// Generate text using instance method
+const result = await model.generate('Write a haiku about TypeScript', {
   maxTokens: 100,
   temperature: 0.7,
 });
@@ -57,25 +66,109 @@ console.log('Generated text:', result.text);
 console.log('Finish reason:', result.finishReason);
 ```
 
-### Using Specific Models
+### Legacy Static API (Deprecated)
+
+The original static API is still available for backward compatibility:
 
 ```typescript
 import { FoundationModels } from 'apple-foundation-models';
 
-// Get available models
+// List available models
 const models = await FoundationModels.listAvailableModels();
-const modelId = models[0].id;
 
-// Generate with specific model
+// Generate text
 const result = await FoundationModels.generateText({
-  prompt: 'Explain quantum computing',
-  modelId: modelId,
+  prompt: 'Write a haiku about TypeScript',
+  maxTokens: 100,
+  temperature: 0.7,
+});
+```
+
+## API Reference
+
+### `LanguageModel` (Recommended)
+
+Instance-based class that provides 1-to-1 mapping with Swift's `LanguageModel`.
+
+#### Static Properties
+
+##### `LanguageModel.availableModels`
+
+Returns a promise that resolves to a list of available language models.
+
+**Returns**: `Promise<LanguageModelInfo[]>`
+
+```typescript
+const models = await LanguageModel.availableModels;
+```
+
+#### Constructor
+
+##### `new LanguageModel(id: string)`
+
+Creates a new LanguageModel instance.
+
+**Parameters**:
+- `id` - The model identifier (from `LanguageModel.availableModels`)
+
+```typescript
+const model = new LanguageModel('model-id');
+```
+
+#### Instance Properties
+
+##### `model.id`
+
+Get the model identifier.
+
+**Returns**: `string`
+
+##### `model.getName()`
+
+Get the human-readable name of the model.
+
+**Returns**: `Promise<string>`
+
+##### `model.getMaxTokens()`
+
+Get the maximum number of tokens this model can generate.
+
+**Returns**: `Promise<number>`
+
+#### Instance Methods
+
+##### `model.generate(prompt, config?)`
+
+Generate text using this language model.
+
+**Parameters**:
+- `prompt: string` - The input prompt
+- `config?: GenerationConfig` - Optional generation configuration
+
+**Returns**: `Promise<GenerationResult>`
+
+```typescript
+const result = await model.generate('Write a story', {
   maxTokens: 200,
   temperature: 0.8,
 });
 ```
 
-## API Reference
+##### `model.generateStream(prompt, config?)`
+
+Generate text with streaming (not yet implemented).
+
+**Parameters**:
+- `prompt: string` - The input prompt
+- `config?: GenerationConfig` - Optional generation configuration
+
+**Returns**: `AsyncIterableIterator<string>`
+
+---
+
+### `FoundationModels` (Deprecated)
+
+Legacy static API wrapper for backward compatibility.
 
 ### `FoundationModels.listAvailableModels()`
 
