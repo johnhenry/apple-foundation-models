@@ -12,8 +12,8 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 2. **Clone and Install**
    ```bash
-   git clone https://github.com/johnhenry/AppleFoundationModelsForJavascript.git
-   cd AppleFoundationModelsForJavascript
+   git clone https://github.com/johnhenry/apple-foundation-models.git
+   cd apple-foundation-models
    npm install
    ```
 
