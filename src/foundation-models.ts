@@ -375,7 +375,16 @@ export class LanguageModelSession {
    * Maps to: LanguageModelSession.prewarm() in Swift
    *
    * Prewarming initializes the model and allocates resources ahead of time,
-   * reducing latency for the first generation request.
+   * reducing latency for the first generation request. This is especially useful
+   * when you know you'll need the model soon but want to minimize wait time.
+   *
+   * @example
+   * ```typescript
+   * const session = new LanguageModelSession();
+   * await session.prewarm(); // Initialize resources
+   * // First generation will be faster
+   * const response = await session.respond('Hello');
+   * ```
    */
   async prewarm(): Promise<void> {
     await executeSwiftCommand('prewarm', {});
@@ -386,9 +395,17 @@ export class LanguageModelSession {
    * Maps to: LanguageModelSession.prewarm(promptPrefix:) in Swift
    *
    * Prewarming with a prefix allows the model to process and cache the prefix,
-   * which can significantly speed up generation when using that prefix.
+   * which can significantly speed up generation when using that prefix. This is
+   * particularly useful for system prompts that will be reused or template-based generation.
    *
    * @param promptPrefix - The prompt prefix to preload
+   * @example
+   * ```typescript
+   * const session = new LanguageModelSession();
+   * await session.prewarmWithPrefix('You are a helpful coding assistant.');
+   * // Subsequent generations with this prefix will be faster
+   * const response = await session.respond('that specializes in TypeScript...');
+   * ```
    */
   async prewarmWithPrefix(promptPrefix: string): Promise<void> {
     await executeSwiftCommand('prewarmWithPrefix', { prefix: promptPrefix });

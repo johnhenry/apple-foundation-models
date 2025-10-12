@@ -94,6 +94,11 @@ export async function executeSwiftCommand<T = any>(
 /**
  * Execute a streaming command via the Swift wrapper
  * Yields chunks as they arrive
+ *
+ * IMPLEMENTATION NOTE: This function reads stdout line-by-line, parsing each line
+ * as a separate JSON response. The Swift wrapper outputs single-line JSON for each
+ * chunk (using printCompactResponse) to enable this streaming architecture.
+ * Protocol: {"success":true,"data":{"chunk":"text","done":false}}
  */
 export async function* executeSwiftStreamCommand(
   action: string,

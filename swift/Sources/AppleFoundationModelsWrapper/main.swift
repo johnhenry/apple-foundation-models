@@ -201,10 +201,12 @@ class FoundationModelsWrapper {
         // Stream the response
         let stream = session.streamResponse(to: promptValue)
 
-        // Track previous content to send only deltas
+        // IMPLEMENTATION NOTE: Apple's streaming API returns snapshots (cumulative content),
+        // not deltas. We calculate deltas here to provide incremental chunks to TypeScript.
+        // This matches the expected streaming behavior where consumers receive only new content.
         var previousContent = ""
 
-        // Output each chunk as a separate JSON line
+        // Output each chunk as a separate JSON line (single-line JSON for easy parsing)
         for try await snapshot in stream {
             // Calculate the delta (new content since last snapshot)
             let currentContent = snapshot.content
