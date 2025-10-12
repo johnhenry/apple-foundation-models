@@ -52,10 +52,12 @@ export class SystemLanguageModel {
   }
 
   /**
-   * Get a list of available language models
-   * This is a helper method for compatibility
+   * Get a list of available language models (internal helper)
+   * Note: The actual FoundationModels API only exposes SystemLanguageModel.default
+   * This is kept for internal use only.
+   * @internal
    */
-  static get availableModels(): Promise<LanguageModelInfo[]> {
+  private static get availableModels(): Promise<LanguageModelInfo[]> {
     return executeSwiftCommand<LanguageModelInfo[]>('listAvailableModels');
   }
 
@@ -216,10 +218,19 @@ export class LanguageModelSession {
 
   /**
    * Create a new LanguageModelSession
-   * Maps to: LanguageModelSession(model:guardrails:tools:instructions:) initializer in Swift
-   * 
+   *
+   * Maps to multiple Swift initializers:
+   * - init()
+   * - init(instructions:)
+   * - init(model:)
+   * - init(model:instructions:)
+   * - init(model:tools:instructions:)
+   *
+   * Note: The actual Swift API does NOT have a separate `guardrails` parameter.
+   * Guardrails are managed internally by the framework.
+   *
    * @param model - The language model to use (defaults to SystemLanguageModel.default)
-   * @param guardrails - Safety guardrails for filtering (defaults to Guardrails.default)
+   * @param guardrails - Kept for backwards compatibility, but ignored (guardrails are internal)
    * @param tools - Array of tools available for the model to call (defaults to [])
    * @param instructions - Context, role, and preferences for model responses (optional)
    */
@@ -230,10 +241,10 @@ export class LanguageModelSession {
     instructions?: Instructions
   ) {
     this.model = model;
-    this.guardrails = guardrails;
+    this.guardrails = guardrails;  // Stored but not used (matches actual API behavior)
     this.tools = tools;
     this.instructions = instructions;
-    
+
     // Add instructions to transcript if provided
     if (this.instructions) {
       this.transcriptHistory.push({
@@ -241,13 +252,6 @@ export class LanguageModelSession {
         instructions: this.instructions,
       });
     }
-  }
-
-  /**
-   * Get the underlying SystemLanguageModel
-   */
-  get languageModel(): SystemLanguageModel {
-    return this.model;
   }
 
   /**

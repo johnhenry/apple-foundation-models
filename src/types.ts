@@ -71,10 +71,16 @@ export interface GenerationOptions {
  * Instructions provide context, role, and preferences for model responses
  */
 export class Instructions {
-  readonly text: string;
+  readonly text!: string;
 
   constructor(text: string) {
-    this.text = text;
+    // Make text truly immutable at runtime
+    Object.defineProperty(this, 'text', {
+      value: text,
+      writable: false,
+      enumerable: true,
+      configurable: false,
+    });
   }
 }
 
@@ -118,10 +124,16 @@ export interface Response<Content> {
  * Tool output wrapper
  */
 export class ToolOutput {
-  readonly value: string | any;
+  readonly value!: string | any;
 
   constructor(value: string | any) {
-    this.value = value;
+    // Make value truly immutable at runtime
+    Object.defineProperty(this, 'value', {
+      value: value,
+      writable: false,
+      enumerable: true,
+      configurable: false,
+    });
   }
 }
 

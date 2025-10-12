@@ -67,14 +67,17 @@ test('module exports LanguageModelSession class', () => {
 test('LanguageModelSession can be instantiated with defaults', () => {
   const session = new LanguageModelSession();
   assert.ok(session, 'LanguageModelSession instance should be created');
-  assert.ok(session.languageModel, 'Session should have languageModel property');
+  // Note: languageModel property removed - doesn't exist in actual Swift API
+  assert.ok(session.isResponding !== undefined, 'Session should have isResponding property');
 });
 
 test('LanguageModelSession can be instantiated with SystemLanguageModel instance', () => {
   const model = SystemLanguageModel.default;
   const session = new LanguageModelSession(model);
   assert.ok(session, 'LanguageModelSession instance should be created with SystemLanguageModel');
-  assert.strictEqual(session.languageModel, model, 'Session should use provided SystemLanguageModel instance');
+  // Note: languageModel property removed - doesn't exist in actual Swift API
+  // The session internally uses the model, but doesn't expose it publicly
+  assert.ok(session.transcript, 'Session should have transcript property');
 });
 
 test('LanguageModelSession can be instantiated with instructions', () => {
