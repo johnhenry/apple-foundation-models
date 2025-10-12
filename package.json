@@ -26,7 +26,8 @@
     "clean": "rm -rf dist node_modules swift/.build",
     "postinstall": "node scripts/build-swift.js",
     "prepare": "npm run build",
-    "test": "node --test"
+    "test": "node --test",
+    "validate": "node scripts/validate.js"
   },
   "keywords": [
     "apple",
