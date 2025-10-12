@@ -1,111 +1,122 @@
 /**
  * LanguageModelSession example for Apple Foundation Models
- * 
+ *
  * This example demonstrates the session-based API for conversational interactions:
- * 1. Creating a session with a system prompt
- * 2. Sending multiple messages in context
- * 3. Accessing message history
- * 4. Resetting the session
+ * 1. Creating a session with instructions
+ * 2. Multi-turn conversations with context
+ * 3. Accessing transcript history
+ * 4. Using generation options
  */
 
-import { SystemLanguageModel, LanguageModelSession } from '../dist/index.mjs';
+import { SystemLanguageModel, LanguageModelSession, Instructions, SamplingMode }
+  from '../dist/index.mjs';
 
 async function main() {
   try {
     console.log('🍎 Apple Foundation Models - LanguageModelSession Example\n');
-    
-    // 1. Get available models
-    console.log('📋 Listing available models...');
-    const models = await SystemLanguageModel.availableModels;
-    
-    if (models.length === 0) {
-      console.log('❌ No models available. Please ensure you have models installed.');
-      process.exit(1);
+
+    // 1. Get the default model
+    const model = SystemLanguageModel.default;
+
+    if (!model.isAvailable) {
+      console.log('❌ Model not available');
+      return;
     }
-    
-    console.log(`Found ${models.length} model(s). Using: ${models[0].name}\n`);
-    
-    // 2. Create a session with a system prompt
-    console.log('🔧 Creating a LanguageModelSession with system prompt...');
-    const session = new LanguageModelSession(models[0].id, {
-      systemPrompt: 'You are a helpful coding assistant specialized in TypeScript and JavaScript.',
-      generationConfig: {
-        maxTokens: 150,
-        temperature: 0.7,
-      },
-    });
+
+    console.log('✅ Model is available\n');
+
+    // 2. Create a session with instructions
+    console.log('🔧 Creating a LanguageModelSession with instructions...');
+    const instructions = new Instructions(
+      'You are a helpful coding assistant specialized in TypeScript and JavaScript.'
+    );
+
+    const session = new LanguageModelSession(
+      model,
+      undefined, // guardrails (use default)
+      [],        // tools
+      instructions
+    );
     console.log('Session created!\n');
-    
+
     // 3. Have a multi-turn conversation
     console.log('💬 Starting conversation...\n');
-    
+
     console.log('User: What is TypeScript?');
-    const response1 = await session.generate('What is TypeScript?');
-    console.log(`Assistant: ${response1.text}`);
-    console.log(`(Finish reason: ${response1.finishReason})\n`);
-    
+    const response1 = await session.respond('What is TypeScript?');
+    console.log(`Assistant: ${response1.content}\n`);
+
     console.log('User: How is it different from JavaScript?');
-    const response2 = await session.generate('How is it different from JavaScript?');
-    console.log(`Assistant: ${response2.text}`);
-    console.log(`(Finish reason: ${response2.finishReason})\n`);
-    
+    const response2 = await session.respond('How is it different from JavaScript?');
+    console.log(`Assistant: ${response2.content}\n`);
+
     console.log('User: Can you give me a simple example?');
-    const response3 = await session.generate('Can you give me a simple example?', {
-      maxTokens: 200, // Override default config for this message
-    });
-    console.log(`Assistant: ${response3.text}`);
-    console.log(`(Finish reason: ${response3.finishReason})\n`);
-    
-    // 4. Access message history
-    console.log('📚 Message history:');
-    const messages = session.messages;
-    console.log(`Total messages in history: ${messages.length}`);
-    messages.forEach((msg, index) => {
-      const preview = msg.content.length > 50 
-        ? msg.content.substring(0, 50) + '...' 
-        : msg.content;
-      console.log(`  ${index + 1}. [${msg.role}] ${preview}`);
-    });
+    const options = {
+      temperature: 0.7,
+      maximumResponseTokens: 200
+    };
+    const response3 = await session.respond('Can you give me a simple example?', options);
+    console.log(`Assistant: ${response3.content}\n`);
+
+    // 4. Access transcript history
+    console.log('📚 Transcript history:');
+    const transcript = session.transcript;
+    console.log(`Total entries: ${transcript.length}`);
+
+    for (const entry of transcript) {
+      switch (entry.type) {
+        case 'instructions':
+          console.log('  [Instructions] Set');
+          break;
+        case 'prompt':
+          const promptPreview = entry.content.substring(0, 50);
+          console.log(`  [User] ${promptPreview}...`);
+          break;
+        case 'response':
+          const responsePreview = entry.content.substring(0, 50);
+          console.log(`  [Assistant] ${responsePreview}...`);
+          break;
+      }
+    }
     console.log();
-    
-    // 5. Get the underlying model
-    console.log('🔍 Accessing underlying model...');
-    const model = session.languageModel;
-    console.log(`Model ID: ${model.id}`);
-    console.log(`Model Name: ${await model.getName()}\n`);
-    
-    // 6. Reset the session
-    console.log('🔄 Resetting session...');
-    session.reset();
-    console.log(`Messages after reset: ${session.messages.length}`);
-    console.log('(System prompt is preserved)\n');
-    
-    // 7. Start a new conversation after reset
-    console.log('💬 New conversation after reset:');
-    console.log('User: Hello!');
-    const response4 = await session.generate('Hello!');
-    console.log(`Assistant: ${response4.text}\n`);
-    
-    // 8. Create another session without system prompt
-    console.log('🔧 Creating session without system prompt...');
-    const session2 = new LanguageModelSession(models[0].id);
-    const response5 = await session2.generate('Write a haiku about code');
-    console.log(`Assistant: ${response5.text}\n`);
-    
-    // 9. Create session using existing SystemLanguageModel instance
-    console.log('🔧 Creating session from SystemLanguageModel instance...');
-    const modelInstance = new SystemLanguageModel(models[0].id);
-    const session3 = new LanguageModelSession(modelInstance, {
-      systemPrompt: 'You are a poet who writes only in haikus.',
-    });
-    const response6 = await session3.generate('Describe the morning');
-    console.log(`Assistant: ${response6.text}\n`);
-    
-    console.log('✅ Example completed successfully!');
+
+    // 5. Check if session is responding
+    console.log(`Is responding: ${session.isResponding}\n`);
+
+    // 6. Create another session without instructions
+    console.log('🔧 Creating session without instructions...');
+    const session2 = new LanguageModelSession(model);
+
+    const response4 = await session2.respond('Write a haiku about code');
+    console.log(`\nGenerated haiku:`);
+    console.log(response4.content);
+    console.log(`\nTranscript entries: ${session2.transcript.length}\n`);
+
+    // 7. Create session with creative options
+    console.log('🎨 Creating session with creative generation...');
+    const session3 = new LanguageModelSession(
+      model,
+      undefined,
+      [],
+      new Instructions('You are a creative poet.')
+    );
+
+    const creativeOptions = {
+      sampling: SamplingMode.Random,
+      temperature: 1.2,
+      maximumResponseTokens: 150
+    };
+
+    const response5 = await session3.respond('Describe a sunset', creativeOptions);
+    console.log(`\nPoetic description:`);
+    console.log(response5.content);
+
+    console.log('\n✅ Example completed successfully!');
     console.log('\n💡 LanguageModelSession maintains conversation context across multiple turns.');
-    
+
   } catch (error) {
     console.error('❌ Error:', error.message);
+    console.error(error.stack);
     process.exit(1);
   }
 }

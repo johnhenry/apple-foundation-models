@@ -159,13 +159,82 @@ class FoundationModelsWrapper {
     }
 
     private func generateStream(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
-        // Stream implementation would use AsyncStream
-        // For now, return error as streaming needs different handling
-        return CommandResponse(
-            success: false,
-            data: nil,
-            error: "Streaming not yet implemented in CLI mode"
+        guard let params = parameters else {
+            return CommandResponse(success: false, data: nil, error: "Missing parameters")
+        }
+
+        guard let promptValue = params["prompt"]?.value as? String else {
+            return CommandResponse(success: false, data: nil, error: "Missing 'prompt' parameter")
+        }
+
+        let maxTokens = params["maxTokens"]?.value as? Int
+        let temperature = params["temperature"]?.value as? Double
+
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Build generation options if provided
+        var opts = GenerationOptions()
+        if let temp = temperature {
+            opts.temperature = temp
+        }
+        if let tokens = maxTokens {
+            opts.maximumResponseTokens = tokens
+        }
+
+        // Stream the response
+        let stream = session.streamResponse(to: promptValue)
+
+        // Track previous content to send only deltas
+        var previousContent = ""
+
+        // Output each chunk as a separate JSON line
+        for try await snapshot in stream {
+            // Calculate the delta (new content since last snapshot)
+            let currentContent = snapshot.content
+            let delta: String
+            if currentContent.hasPrefix(previousContent) {
+                delta = String(currentContent.dropFirst(previousContent.count))
+            } else {
+                // Fallback if content doesn't have expected prefix
+                delta = currentContent
+            }
+
+            // Only output if there's new content
+            if !delta.isEmpty {
+                let chunkResponse = CommandResponse(
+                    success: true,
+                    data: AnyCodable(["chunk": delta, "done": false]),
+                    error: nil
+                )
+                AppleFoundationModelsWrapperMain.printCompactResponse(chunkResponse)
+            }
+
+            previousContent = currentContent
+        }
+
+        // Send final done message (also compact for consistency)
+        let finalResponse = CommandResponse(
+            success: true,
+            data: AnyCodable(["chunk": "", "done": true]),
+            error: nil
         )
+        AppleFoundationModelsWrapperMain.printCompactResponse(finalResponse)
+
+        // Return success (won't be printed since we already sent chunks)
+        return finalResponse
     }
 }
 #endif
@@ -188,7 +257,10 @@ struct AppleFoundationModelsWrapperMain {
                 let data = line.data(using: .utf8)!
                 let command = try JSONDecoder().decode(Command.self, from: data)
                 let response = try await wrapper.handleCommand(command)
-                printResponse(response)
+                // Don't print response for streaming - it's already been printed
+                if command.action != "generateStream" {
+                    printResponse(response)
+                }
             } catch {
                 printError("Error: \(error.localizedDescription)")
                 exit(1)
@@ -207,6 +279,19 @@ struct AppleFoundationModelsWrapperMain {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
+            let data = try encoder.encode(response)
+            if let string = String(data: data, encoding: .utf8) {
+                print(string)
+            }
+        } catch {
+            printError("Failed to encode response: \(error)")
+        }
+    }
+
+    static func printCompactResponse(_ response: CommandResponse) {
+        do {
+            let encoder = JSONEncoder()
+            // No pretty printing for streaming - single line JSON
             let data = try encoder.encode(response)
             if let string = String(data: data, encoding: .utf8) {
                 print(string)

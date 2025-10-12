@@ -1,4 +1,4 @@
-import { executeSwiftCommand } from './executor.js';
+import { executeSwiftCommand, executeSwiftStreamCommand } from './executor.js';
 import {
   type LanguageModelInfo,
   type GenerationResult,
@@ -329,13 +329,13 @@ export class LanguageModelSession {
   /**
    * Stream the model's response incrementally
    * Maps to: LanguageModelSession.streamResponse(to:) in Swift
-   * 
+   *
    * @param prompt - The text prompt to send
    * @returns AsyncIterable that yields text chunks
    */
   async *streamResponse(prompt: string): AsyncIterableIterator<string> {
     this._isResponding = true;
-    
+
     try {
       // Add prompt to transcript
       this.transcriptHistory.push({
@@ -343,8 +343,21 @@ export class LanguageModelSession {
         content: prompt,
       });
 
-      // TODO: Implement actual streaming
-      throw new Error('Streaming is not yet implemented. Use respond() instead.');
+      // Build context from transcript
+      const contextPrompt = this.buildContextPrompt();
+
+      // Stream the response
+      let fullResponse = '';
+      for await (const chunk of executeSwiftStreamCommand('generateStream', { prompt: contextPrompt })) {
+        fullResponse += chunk;
+        yield chunk;
+      }
+
+      // Add complete response to transcript
+      this.transcriptHistory.push({
+        type: 'response',
+        content: fullResponse,
+      });
     } finally {
       this._isResponding = false;
     }
