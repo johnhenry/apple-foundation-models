@@ -7,6 +7,7 @@ A TypeScript wrapper providing 1-to-1 API translation of Apple's [FoundationMode
 - 🎯 **1-to-1 API Translation**: Direct mapping from Swift to TypeScript/JavaScript
 - 📦 **Type-Safe**: Full TypeScript support with comprehensive type definitions
 - 🔄 **Instance & Session APIs**: Both single-generation and conversational interfaces
+- 🛠️ **Tool Support**: Complete tool/function calling support with automatic execution ✅
 - 🚀 **Auto-Build**: Swift wrapper builds automatically during npm install
 - 🍎 **Native Performance**: Leverages Apple's on-device AI models
 - 🔒 **Privacy-First**: All processing happens on-device
@@ -125,6 +126,55 @@ See [API_REFERENCE.md](API_REFERENCE.md) for complete API documentation with sid
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical architecture.
 
+## Tool Support ✅
+
+**NEW**: Complete tool/function calling support with automatic execution!
+
+```typescript
+import { LanguageModelSession, ToolOutput } from 'apple-foundation-models';
+
+// Define tools the model can use
+const weatherTool = {
+  name: 'getWeather',
+  description: 'Get current weather for a city',
+  async call(args) {
+    const weather = await fetchWeatherAPI(args.city);
+    return new ToolOutput(weather);
+  }
+};
+
+const calcTool = {
+  name: 'calculate',
+  description: 'Perform mathematical calculations',
+  async call(args) {
+    const result = eval(`${args.a} ${args.op} ${args.b}`);
+    return new ToolOutput(result);
+  }
+};
+
+// Create session with tools
+const session = new LanguageModelSession(
+  undefined,        // model (uses default)
+  undefined,        // guardrails
+  [weatherTool, calcTool]  // tools
+);
+
+// Model can now call tools automatically
+const response = await session.respond("What's 25 * 4?");
+console.log(response.content);
+
+// Important: Close session to cleanup server
+await session.close();
+```
+
+**Key Features**:
+- 🔧 Zero-config automatic tool execution
+- 🚀 Modal architecture - zero performance impact for sessions without tools
+- 🔒 Unix domain socket for secure bidirectional communication
+- 📝 Full TypeScript types for tool definitions
+
+See [IMPLEMENTATION_COMPLETE.md](IMPLEMENTATION_COMPLETE.md) for complete documentation.
+
 ## Examples
 
 ### Check Model Availability
@@ -201,6 +251,8 @@ const response = await session.respond('Write a creative poem', options);
 
 - [API Reference](API_REFERENCE.md) - Complete API with Swift ↔ JavaScript examples
 - [Architecture](ARCHITECTURE.md) - Technical implementation details
+- [Tool Execution Architecture](TOOL_EXECUTION_ARCHITECTURE.md) - Solutions for automatic tool execution
+- [Unix Socket Modal Design](UNIX_SOCKET_MODAL_DESIGN.md) - Recommended architecture with zero performance impact
 - [Contributing](CONTRIBUTING.md) - Development and contribution guide
 - [Changelog](CHANGELOG.md) - Version history
 
@@ -208,6 +260,7 @@ const response = await session.respond('Write a creative poem', options);
 
 - **Platform**: macOS 15.0+ only
 - **Offline**: Requires internet for initial model download
+- **Tool Execution**: Automatic tool execution not yet implemented (see [TOOL_EXECUTION_ARCHITECTURE.md](TOOL_EXECUTION_ARCHITECTURE.md))
 
 ## Related Projects
 

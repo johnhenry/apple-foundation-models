@@ -1,4 +1,7 @@
 import { executeSwiftCommand, executeSwiftStreamCommand } from './executor.js';
+import type { Executor } from './executor-interface.js';
+import { ProcessPerCallExecutor } from './executors/process-per-call.js';
+import { PersistentServerExecutor } from './executors/persistent-server.js';
 import {
   type LanguageModelInfo,
   type GenerationResult,
@@ -222,6 +225,7 @@ export class LanguageModelSession {
   private readonly guardrails: Guardrails;
   private readonly tools: Tool[];
   private readonly instructions?: Instructions;
+  private readonly executor: Executor;
   private transcriptHistory: TranscriptEntry[] = [];
   private _isResponding: boolean = false;
 
@@ -276,6 +280,15 @@ export class LanguageModelSession {
     this.tools = tools;
     this.instructions = instructions;
 
+    // MODAL EXECUTOR SELECTION
+    // - Tools present → PersistentServerExecutor (enables bidirectional communication)
+    // - No tools → ProcessPerCallExecutor (fast path, current behavior)
+    if (tools.length > 0) {
+      this.executor = new PersistentServerExecutor(tools);
+    } else {
+      this.executor = new ProcessPerCallExecutor();
+    }
+
     // Add instructions to transcript if provided
     if (this.instructions) {
       this.transcriptHistory.push({
@@ -322,7 +335,7 @@ export class LanguageModelSession {
   
   async respond(prompt: string, options?: GenerationOptions): Promise<Response<string>> {
     this._isResponding = true;
-    
+
     try {
       // Add prompt to transcript
       this.transcriptHistory.push({
@@ -333,23 +346,25 @@ export class LanguageModelSession {
       // Build context from transcript
       const contextPrompt = this.buildContextPrompt();
 
-      // Convert options to legacy config format
-      const config: GenerationConfig = {
+      // Execute via selected executor (modal: ProcessPerCall or PersistentServer)
+      const data = await this.executor.execute<{ text?: string; content?: string }>('generateText', {
+        prompt: contextPrompt,
         maxTokens: options?.maximumResponseTokens,
         temperature: options?.temperature,
-      };
+        sampling: options?.sampling,
+      });
 
-      // Generate response
-      const result = await this.model.generate(contextPrompt, config);
+      // Swift wrapper returns 'text', but accept 'content' for backward compatibility
+      const responseText = data.text || data.content || '';
 
       // Add response to transcript
       this.transcriptHistory.push({
         type: 'response',
-        content: result.text,
+        content: responseText,
       });
 
       return {
-        content: result.text,
+        content: responseText,
         transcriptEntries: [...this.transcriptHistory],
       };
     } finally {
@@ -377,9 +392,9 @@ export class LanguageModelSession {
       // Build context from transcript
       const contextPrompt = this.buildContextPrompt();
 
-      // Stream the response
+      // Stream via selected executor (modal: ProcessPerCall or PersistentServer)
       let fullResponse = '';
-      for await (const chunk of executeSwiftStreamCommand('generateStream', { prompt: contextPrompt })) {
+      for await (const chunk of this.executor.executeStream('generateStream', { prompt: contextPrompt })) {
         fullResponse += chunk;
         yield chunk;
       }
@@ -433,6 +448,45 @@ export class LanguageModelSession {
    */
   async prewarmWithPrefix(promptPrefix: string): Promise<void> {
     await executeSwiftCommand('prewarmWithPrefix', { prefix: promptPrefix });
+  }
+
+  /**
+   * Close the session and clean up resources
+   *
+   * **API DEVIATION**: This method does not exist in the Swift FoundationModels API,
+   * where resource cleanup is automatic via ARC (Automatic Reference Counting).
+   * In JavaScript, we need explicit cleanup for:
+   * - Persistent server processes (when using tools)
+   * - Unix socket connections
+   * - Background threads
+   *
+   * **When to call**:
+   * - Required: When session has tools (uses persistent server)
+   * - Optional: When session has no tools (process-per-call, no cleanup needed)
+   *
+   * **Best Practice**: Always call close() in a finally block or use try-finally pattern.
+   *
+   * @example
+   * ```typescript
+   * // With tools (persistent server - cleanup required)
+   * const session = new LanguageModelSession(model, undefined, [weatherTool]);
+   * try {
+   *   await session.respond('What\'s the weather?');
+   * } finally {
+   *   await session.close();  // Shuts down server, removes socket
+   * }
+   *
+   * // Without tools (process-per-call - cleanup optional but harmless)
+   * const simpleSession = new LanguageModelSession();
+   * try {
+   *   await simpleSession.respond('Hello');
+   * } finally {
+   *   await simpleSession.close();  // No-op, but good practice
+   * }
+   * ```
+   */
+  async close(): Promise<void> {
+    await this.executor.close();
   }
 
   /**

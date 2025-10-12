@@ -1,6 +1,7 @@
 import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
+import Network
 #endif
 
 // MARK: - JSON Command Structure
@@ -16,7 +17,7 @@ struct CommandResponse: Codable {
 }
 
 // Helper to handle any JSON value
-struct AnyCodable: Codable {
+struct AnyCodable: Codable, @unchecked Sendable {
     let value: Any
     
     init(_ value: Any) {
@@ -65,10 +66,50 @@ struct AnyCodable: Codable {
     }
 }
 
+// MARK: - JSON-RPC Message Structures (for Persistent Server)
+
+struct JSONRPCRequest: Codable {
+    let jsonrpc: String
+    let id: String?
+    let method: String
+    let params: AnyCodable?
+}
+
+struct JSONRPCResponse: Codable {
+    let jsonrpc: String
+    let id: String?
+    let result: AnyCodable?
+    let error: JSONRPCError?
+
+    init(id: String?, result: AnyCodable) {
+        self.jsonrpc = "2.0"
+        self.id = id
+        self.result = result
+        self.error = nil
+    }
+
+    init(id: String?, error: JSONRPCError) {
+        self.jsonrpc = "2.0"
+        self.id = id
+        self.result = nil
+        self.error = error
+    }
+}
+
+struct JSONRPCError: Codable {
+    let code: Int
+    let message: String
+}
+
+struct ToolDefinition: Codable {
+    let name: String
+    let description: String
+}
+
 // MARK: - Foundation Models Wrapper
 #if canImport(FoundationModels)
 @available(macOS 26.0, *)
-class FoundationModelsWrapper {
+class FoundationModelsWrapper: @unchecked Sendable {
 
     func handleCommand(_ command: Command) async throws -> CommandResponse {
         switch command.action {
@@ -107,7 +148,7 @@ class FoundationModelsWrapper {
         )
     }
 
-    private func generateText(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+    func generateText(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
         guard let params = parameters else {
             return CommandResponse(success: false, data: nil, error: "Missing parameters")
         }
@@ -162,7 +203,7 @@ class FoundationModelsWrapper {
         )
     }
 
-    private func generateStream(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+    func generateStream(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
         guard let params = parameters else {
             return CommandResponse(success: false, data: nil, error: "Missing parameters")
         }
@@ -243,7 +284,7 @@ class FoundationModelsWrapper {
         return finalResponse
     }
 
-    private func prewarm(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+    func prewarm(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
         // Get the default model
         let model = SystemLanguageModel.default
 
@@ -269,7 +310,7 @@ class FoundationModelsWrapper {
         )
     }
 
-    private func prewarmWithPrefix(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+    func prewarmWithPrefix(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
         guard let params = parameters else {
             return CommandResponse(success: false, data: nil, error: "Missing parameters")
         }
@@ -304,6 +345,314 @@ class FoundationModelsWrapper {
         )
     }
 }
+
+// MARK: - Persistent Server
+
+@available(macOS 26.0, *)
+actor PersistentServer {
+    private let socketPath: String
+    private var serverSocket: Int32 = -1
+    private var clientSocket: Int32 = -1
+    private nonisolated let wrapper: FoundationModelsWrapper
+    private var tools: [ToolDefinition] = []
+    private var isRunning = false
+
+    init(socketPath: String) {
+        self.socketPath = socketPath
+        self.wrapper = FoundationModelsWrapper()
+    }
+
+    func start() throws {
+        // Remove existing socket file if it exists
+        unlink(socketPath)
+
+        // Create Unix domain socket
+        serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard serverSocket != -1 else {
+            throw NSError(domain: "PersistentServer", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: "Failed to create socket: \(String(cString: strerror(errno)))"])
+        }
+
+        // Bind to socket path
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+
+        guard socketPath.utf8.count < MemoryLayout.size(ofValue: addr.sun_path) else {
+            close(serverSocket)
+            throw NSError(domain: "PersistentServer", code: -1, userInfo: [NSLocalizedDescriptionKey: "Socket path too long"])
+        }
+
+        _ = withUnsafeMutablePointer(to: &addr.sun_path.0) { ptr in
+            socketPath.withCString { cString in
+                strcpy(ptr, cString)
+            }
+        }
+
+        let bindResult = withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+                bind(serverSocket, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+
+        guard bindResult != -1 else {
+            close(serverSocket)
+            throw NSError(domain: "PersistentServer", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: "Failed to bind socket: \(String(cString: strerror(errno)))"])
+        }
+
+        // Listen for connections
+        guard listen(serverSocket, 1) != -1 else {
+            close(serverSocket)
+            throw NSError(domain: "PersistentServer", code: Int(errno), userInfo: [NSLocalizedDescriptionKey: "Failed to listen: \(String(cString: strerror(errno)))"])
+        }
+
+        isRunning = true
+        fputs("[Server] Listening on \(socketPath)\n", stderr)
+
+        // Start accepting connections in background
+        Task {
+            await acceptConnections()
+        }
+    }
+
+    private func acceptConnections() async {
+        while isRunning {
+            // Accept connection (blocking call)
+            let client = accept(serverSocket, nil, nil)
+            guard client != -1 else {
+                if isRunning {
+                    fputs("[Server] Accept failed: \(String(cString: strerror(errno)))\n", stderr)
+                }
+                continue
+            }
+
+            fputs("[Server] Client connected\n", stderr)
+            clientSocket = client
+
+            // Handle this client
+            await handleClient(client)
+        }
+    }
+
+    private func handleClient(_ socket: Int32) async {
+        var buffer = ""
+        let bufferSize = 4096
+        var readBuffer = [UInt8](repeating: 0, count: bufferSize)
+
+        while isRunning {
+            let bytesRead = read(socket, &readBuffer, bufferSize)
+
+            guard bytesRead > 0 else {
+                if bytesRead == 0 {
+                    fputs("[Server] Client disconnected\n", stderr)
+                } else {
+                    fputs("[Server] Read error: \(String(cString: strerror(errno)))\n", stderr)
+                }
+                close(socket)
+                return
+            }
+
+            guard let chunk = String(bytes: readBuffer[0..<bytesRead], encoding: .utf8) else {
+                continue
+            }
+
+            buffer += chunk
+
+            // Process complete lines (JSON-RPC messages end with \n)
+            let lines = buffer.components(separatedBy: "\n")
+            buffer = lines.last ?? ""
+
+            for line in lines.dropLast() {
+                guard !line.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
+                await handleMessage(line, socket: socket)
+            }
+        }
+
+        close(socket)
+    }
+
+    private func handleMessage(_ line: String, socket: Int32) async {
+        do {
+            guard let data = line.data(using: .utf8) else { return }
+            let request = try JSONDecoder().decode(JSONRPCRequest.self, from: data)
+
+            // Handle different methods
+            switch request.method {
+            case "registerTools":
+                await handleRegisterTools(request, socket: socket)
+            case "generateText":
+                await handleGenerateText(request, socket: socket)
+            case "generateStream", "generateStreamStream":
+                await handleGenerateStream(request, socket: socket)
+            case "prewarm":
+                await handlePrewarm(request, socket: socket)
+            case "prewarmWithPrefix":
+                await handlePrewarmWithPrefix(request, socket: socket)
+            default:
+                sendResponse(JSONRPCResponse(
+                    id: request.id,
+                    error: JSONRPCError(code: -32601, message: "Method not found: \(request.method ?? "unknown")")
+                ), socket: socket)
+            }
+        } catch {
+            fputs("[Server] Failed to parse message: \(error)\n", stderr)
+        }
+    }
+
+    private func handleRegisterTools(_ request: JSONRPCRequest, socket: Int32) async {
+        do {
+            guard let params = request.params?.value as? [String: Any],
+                  let toolsData = try? JSONSerialization.data(withJSONObject: params["tools"] ?? []),
+                  let tools = try? JSONDecoder().decode([ToolDefinition].self, from: toolsData) else {
+                sendResponse(JSONRPCResponse(
+                    id: request.id,
+                    error: JSONRPCError(code: -32602, message: "Invalid tools parameter")
+                ), socket: socket)
+                return
+            }
+
+            self.tools = tools
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                result: AnyCodable(["registered": tools.count])
+            ), socket: socket)
+        }
+    }
+
+    private func handleGenerateText(_ request: JSONRPCRequest, socket: Int32) async {
+        do {
+            let params = request.params?.value as? [String: Any] ?? [:]
+            let response = try await wrapper.generateText(parameters: params.mapValues { AnyCodable($0) })
+
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                result: response.data ?? AnyCodable([:])
+            ), socket: socket)
+        } catch {
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                error: JSONRPCError(code: -32603, message: error.localizedDescription)
+            ), socket: socket)
+        }
+    }
+
+    private func handleGenerateStream(_ request: JSONRPCRequest, socket: Int32) async {
+        // Streaming via JSON-RPC - send multiple responses with same ID
+        do {
+            let params = request.params?.value as? [String: Any] ?? [:]
+
+            // Convert to parameters for generateStream
+            let swiftParams: [String: AnyCodable] = params.mapValues { AnyCodable($0) }
+
+            // Note: This is a simplified version - full streaming implementation
+            // would need to properly handle the ResponseStream
+            let response = try await wrapper.generateStream(parameters: swiftParams)
+
+            // For now, send the complete response
+            // TODO: Implement true streaming with chunks
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                result: response.data ?? AnyCodable([:])
+            ), socket: socket)
+        } catch {
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                error: JSONRPCError(code: -32603, message: error.localizedDescription)
+            ), socket: socket)
+        }
+    }
+
+    private func handlePrewarm(_ request: JSONRPCRequest, socket: Int32) async {
+        do {
+            let params = request.params?.value as? [String: Any] ?? [:]
+            let response = try await wrapper.prewarm(parameters: params.mapValues { AnyCodable($0) })
+
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                result: response.data ?? AnyCodable([:])
+            ), socket: socket)
+        } catch {
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                error: JSONRPCError(code: -32603, message: error.localizedDescription)
+            ), socket: socket)
+        }
+    }
+
+    private func handlePrewarmWithPrefix(_ request: JSONRPCRequest, socket: Int32) async {
+        do {
+            let params = request.params?.value as? [String: Any] ?? [:]
+            let response = try await wrapper.prewarmWithPrefix(parameters: params.mapValues { AnyCodable($0) })
+
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                result: response.data ?? AnyCodable([:])
+            ), socket: socket)
+        } catch {
+            sendResponse(JSONRPCResponse(
+                id: request.id,
+                error: JSONRPCError(code: -32603, message: error.localizedDescription)
+            ), socket: socket)
+        }
+    }
+
+    // Request tool execution from TypeScript
+    func requestToolExecution(name: String, arguments: [String: Any], socket: Int32) async throws -> String {
+        let id = UUID().uuidString
+
+        let request = JSONRPCRequest(
+            jsonrpc: "2.0",
+            id: id,
+            method: "executeTool",
+            params: AnyCodable([
+                "name": name,
+                "arguments": arguments
+            ] as [String : Any])
+        )
+
+        sendMessage(request, socket: socket)
+
+        // Wait for response (simplified - would need proper async handling)
+        // This is a placeholder - full implementation needs continuation-based waiting
+        return "Tool result placeholder"
+    }
+
+    private func sendMessage<T: Encodable>(_ message: T, socket: Int32) {
+        do {
+            let encoder = JSONEncoder()
+            var data = try encoder.encode(message)
+            data.append(contentsOf: "\n".utf8)
+
+            let bytes = [UInt8](data)
+            let written = write(socket, bytes, bytes.count)
+
+            if written < 0 {
+                fputs("[Server] Write error: \(String(cString: strerror(errno)))\n", stderr)
+            }
+        } catch {
+            fputs("[Server] Encoding error: \(error)\n", stderr)
+        }
+    }
+
+    private func sendResponse(_ response: JSONRPCResponse, socket: Int32) {
+        sendMessage(response, socket: socket)
+    }
+
+    func stop() {
+        isRunning = false
+
+        if clientSocket != -1 {
+            close(clientSocket)
+            clientSocket = -1
+        }
+
+        if serverSocket != -1 {
+            close(serverSocket)
+            serverSocket = -1
+        }
+
+        // Clean up socket file
+        unlink(socketPath)
+    }
+}
 #endif
 
 // MARK: - Main Entry Point
@@ -312,6 +661,22 @@ struct AppleFoundationModelsWrapperMain {
     static func main() async {
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *) {
+            // Check for persistent server mode
+            let args = CommandLine.arguments
+            if args.contains("--persistent-server") {
+                // Find socket path argument
+                if let socketIndex = args.firstIndex(of: "--socket"),
+                   args.count > socketIndex + 1 {
+                    let socketPath = args[socketIndex + 1]
+                    await runPersistentServer(socketPath: socketPath)
+                } else {
+                    printError("--persistent-server requires --socket <path>")
+                    exit(1)
+                }
+                return
+            }
+
+            // Default: process-per-call mode
             let wrapper = FoundationModelsWrapper()
 
             // Read command from stdin
@@ -341,7 +706,24 @@ struct AppleFoundationModelsWrapperMain {
         exit(1)
         #endif
     }
-    
+
+    #if canImport(FoundationModels)
+    @available(macOS 26.0, *)
+    static func runPersistentServer(socketPath: String) async {
+        do {
+            let server = PersistentServer(socketPath: socketPath)
+            try await server.start()
+
+            // Keep server running
+            printError("[Server] Running in persistent mode")
+            try await Task.sleep(for: .seconds(3600 * 24))  // Run for 24 hours max
+        } catch {
+            printError("[Server] Failed to start: \(error)")
+            exit(1)
+        }
+    }
+    #endif
+
     static func printResponse(_ response: CommandResponse) {
         do {
             let encoder = JSONEncoder()
