@@ -2,8 +2,35 @@
  * Type definitions matching Apple's FoundationModels API
  */
 
+// ============================================================================
+// SystemLanguageModel Types
+// ============================================================================
+
+/**
+ * Availability status of the system language model
+ */
+export enum Availability {
+  /** Model is available and ready to use */
+  Available = 'available',
+  /** Model is unavailable - device not eligible */
+  DeviceNotEligible = 'deviceNotEligible',
+  /** Model is unavailable - Apple Intelligence not enabled */
+  AppleIntelligenceNotEnabled = 'appleIntelligenceNotEnabled',
+  /** Model is unavailable - model not ready (downloading or initializing) */
+  ModelNotReady = 'modelNotReady',
+}
+
+/**
+ * Use case for specialized language models
+ */
+export enum UseCase {
+  /** Specialized for content tagging, entity extraction, and topic detection */
+  ContentTagging = 'contentTagging',
+}
+
 /**
  * Represents a language model available in FoundationModels
+ * (Used internally for compatibility)
  */
 export interface LanguageModelInfo {
   /** Unique identifier for the model */
@@ -14,8 +41,96 @@ export interface LanguageModelInfo {
   maxTokens: number;
 }
 
+// ============================================================================
+// LanguageModelSession Types
+// ============================================================================
+
 /**
- * Configuration for text generation
+ * Sampling mode for text generation
+ */
+export enum SamplingMode {
+  /** Deterministic - always picks highest probability token */
+  Greedy = 'greedy',
+  /** Random sampling from the probability distribution */
+  Random = 'random',
+}
+
+/**
+ * Options for customizing text generation
+ */
+export interface GenerationOptions {
+  /** Sampling mode */
+  sampling?: SamplingMode;
+  /** Temperature for randomness/creativity (0.0 to 2.0) */
+  temperature?: number;
+  /** Maximum number of tokens to generate */
+  maximumResponseTokens?: number;
+}
+
+/**
+ * Instructions provide context, role, and preferences for model responses
+ */
+export class Instructions {
+  readonly text: string;
+
+  constructor(text: string) {
+    this.text = text;
+  }
+}
+
+/**
+ * Guardrails for safety filtering
+ */
+export class Guardrails {
+  private static _default?: Guardrails;
+
+  static get default(): Guardrails {
+    if (!this._default) {
+      this._default = new Guardrails();
+    }
+    return this._default;
+  }
+
+  private constructor() {}
+}
+
+/**
+ * Entry in the conversation transcript
+ */
+export type TranscriptEntry =
+  | { type: 'prompt'; content: string }
+  | { type: 'response'; content: string }
+  | { type: 'instructions'; instructions: Instructions }
+  | { type: 'toolCalls'; calls: any[] }
+  | { type: 'toolOutput'; output: any };
+
+/**
+ * Response from the language model
+ */
+export interface Response<Content> {
+  /** The generated content */
+  content: Content;
+  /** The sequence of user and assistant messages */
+  transcriptEntries: TranscriptEntry[];
+}
+
+/**
+ * Tool output wrapper
+ */
+export class ToolOutput {
+  readonly value: string | any;
+
+  constructor(value: string | any) {
+    this.value = value;
+  }
+}
+
+// ============================================================================
+// Legacy/Compatibility Types
+// ============================================================================
+
+/**
+ * Configuration for text generation (legacy)
  */
 export interface GenerationConfig {
   /** Maximum number of tokens to generate */
@@ -29,7 +144,7 @@ export interface GenerationConfig {
 }
 
 /**
- * Finish reason for generation
+ * Finish reason for generation (legacy)
  */
 export enum FinishReason {
   /** Generation completed naturally */
@@ -43,7 +158,7 @@ export enum FinishReason {
 }
 
 /**
- * Result from text generation
+ * Result from text generation (legacy)
  */
 export interface GenerationResult {
   /** Generated text */
@@ -53,7 +168,7 @@ export interface GenerationResult {
 }
 
 /**
- * Role of a message in a conversation
+ * Role of a message in a conversation (legacy)
  */
 export enum MessageRole {
   /** System message that sets the context */
@@ -65,7 +180,7 @@ export enum MessageRole {
 }
 
 /**
- * A message in a conversation
+ * A message in a conversation (legacy)
  */
 export interface Message {
   /** Role of the message sender */
@@ -75,7 +190,7 @@ export interface Message {
 }
 
 /**
- * Configuration for LanguageModelSession
+ * Configuration for LanguageModelSession (legacy)
  */
 export interface SessionConfig {
   /** System prompt to set the context */
@@ -85,7 +200,7 @@ export interface SessionConfig {
 }
 
 /**
- * Parameters for generating text
+ * Parameters for generating text (internal)
  */
 export interface GenerateTextParams {
   /** The input prompt */
@@ -99,7 +214,7 @@ export interface GenerateTextParams {
 }
 
 /**
- * Parameters for streaming text generation
+ * Parameters for streaming text generation (internal)
  */
 export interface GenerateStreamParams extends GenerateTextParams {
   /** Callback for each chunk of generated text */
@@ -107,7 +222,7 @@ export interface GenerateStreamParams extends GenerateTextParams {
 }
 
 /**
- * Response wrapper from Swift executable
+ * Response wrapper from Swift executable (internal)
  */
 export interface SwiftResponse<T = any> {
   success: boolean;
