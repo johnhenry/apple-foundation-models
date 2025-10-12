@@ -5,7 +5,16 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { SystemLanguageModel, LanguageModelSession, FinishReason, MessageRole } from '../dist/index.mjs';
+import { 
+  SystemLanguageModel, 
+  LanguageModelSession, 
+  FinishReason, 
+  MessageRole,
+  Availability,
+  UseCase,
+  Instructions,
+  Guardrails,
+} from '../dist/index.mjs';
 
 // Test SystemLanguageModel class
 test('module exports SystemLanguageModel class', () => {
@@ -24,14 +33,14 @@ test('SystemLanguageModel has availableModels static property', () => {
   assert.strictEqual(typeof SystemLanguageModel.availableModels, 'object', 'availableModels should return a Promise');
 });
 
-test('SystemLanguageModel can be instantiated', () => {
-  const model = new SystemLanguageModel('test-model-id');
-  assert.ok(model, 'SystemLanguageModel instance should be created');
-  assert.strictEqual(model.id, 'test-model-id', 'Model ID should match constructor argument');
+test('SystemLanguageModel can be instantiated with use case', () => {
+  const model = new SystemLanguageModel(UseCase.ContentTagging);
+  assert.ok(model, 'SystemLanguageModel instance should be created with UseCase');
+  assert.ok(model.id, 'Model should have an ID');
 });
 
 test('SystemLanguageModel instance has expected methods', () => {
-  const model = new SystemLanguageModel('test-model-id');
+  const model = new SystemLanguageModel(UseCase.ContentTagging);
   assert.ok(typeof model.generate === 'function', 'generate should be a function');
   assert.ok(typeof model.generateStream === 'function', 'generateStream should be a function');
   assert.ok(typeof model.getName === 'function', 'getName should be a function');
@@ -39,8 +48,14 @@ test('SystemLanguageModel instance has expected methods', () => {
 });
 
 test('SystemLanguageModel instance has isAvailable property', () => {
-  const model = new SystemLanguageModel('test-model-id');
+  const model = SystemLanguageModel.default;
   assert.strictEqual(typeof model.isAvailable, 'boolean', 'isAvailable should be a boolean');
+});
+
+test('SystemLanguageModel instance has availability property', () => {
+  const model = SystemLanguageModel.default;
+  assert.ok(model.availability, 'availability property should exist');
+  assert.ok(Object.values(Availability).includes(model.availability), 'availability should be a valid Availability enum value');
 });
 
 // Test LanguageModelSession class
@@ -49,49 +64,61 @@ test('module exports LanguageModelSession class', () => {
   assert.strictEqual(typeof LanguageModelSession, 'function', 'LanguageModelSession should be a class/constructor');
 });
 
-test('LanguageModelSession can be instantiated with model ID', () => {
-  const session = new LanguageModelSession('test-model-id');
+test('LanguageModelSession can be instantiated with defaults', () => {
+  const session = new LanguageModelSession();
   assert.ok(session, 'LanguageModelSession instance should be created');
   assert.ok(session.languageModel, 'Session should have languageModel property');
 });
 
 test('LanguageModelSession can be instantiated with SystemLanguageModel instance', () => {
-  const model = new SystemLanguageModel('test-model-id');
+  const model = SystemLanguageModel.default;
   const session = new LanguageModelSession(model);
   assert.ok(session, 'LanguageModelSession instance should be created with SystemLanguageModel');
   assert.strictEqual(session.languageModel, model, 'Session should use provided SystemLanguageModel instance');
 });
 
+test('LanguageModelSession can be instantiated with instructions', () => {
+  const instructions = new Instructions('You are a helpful assistant.');
+  const session = new LanguageModelSession(
+    SystemLanguageModel.default,
+    Guardrails.default,
+    [],
+    instructions
+  );
+  assert.ok(session, 'LanguageModelSession instance should be created with instructions');
+  assert.strictEqual(session.transcript.length, 1, 'transcript should contain instructions');
+});
+
 test('LanguageModelSession has expected methods', () => {
-  const session = new LanguageModelSession('test-model-id');
-  assert.ok(typeof session.generate === 'function', 'generate should be a function');
-  assert.ok(typeof session.generateStream === 'function', 'generateStream should be a function');
-  assert.ok(typeof session.reset === 'function', 'reset should be a function');
+  const session = new LanguageModelSession();
+  assert.ok(typeof session.respond === 'function', 'respond should be a function');
+  assert.ok(typeof session.streamResponse === 'function', 'streamResponse should be a function');
+  assert.ok(typeof session.prewarm === 'function', 'prewarm should be a function');
+  assert.ok(typeof session.prewarmWithPrefix === 'function', 'prewarmWithPrefix should be a function');
 });
 
-test('LanguageModelSession messages property is accessible', () => {
-  const session = new LanguageModelSession('test-model-id');
-  assert.ok(Array.isArray(session.messages), 'messages should be an array');
-  assert.strictEqual(session.messages.length, 0, 'messages should be empty initially');
+test('LanguageModelSession transcript property is accessible', () => {
+  const session = new LanguageModelSession();
+  assert.ok(Array.isArray(session.transcript), 'transcript should be an array');
+  assert.strictEqual(session.transcript.length, 0, 'transcript should be empty initially');
 });
 
-test('LanguageModelSession with system prompt adds message to history', () => {
-  const session = new LanguageModelSession('test-model-id', {
-    systemPrompt: 'You are a helpful assistant.',
-  });
-  assert.strictEqual(session.messages.length, 1, 'messages should contain system prompt');
-  assert.strictEqual(session.messages[0].role, MessageRole.System, 'first message should be system role');
-  assert.strictEqual(session.messages[0].content, 'You are a helpful assistant.', 'system message content should match');
+test('LanguageModelSession has isResponding property', () => {
+  const session = new LanguageModelSession();
+  assert.strictEqual(typeof session.isResponding, 'boolean', 'isResponding should be a boolean');
+  assert.strictEqual(session.isResponding, false, 'isResponding should be false initially');
 });
 
-test('LanguageModelSession reset clears messages but preserves system prompt', () => {
-  const session = new LanguageModelSession('test-model-id', {
-    systemPrompt: 'Test prompt',
-  });
-  assert.strictEqual(session.messages.length, 1, 'should have system prompt');
-  session.reset();
-  assert.strictEqual(session.messages.length, 1, 'should still have system prompt after reset');
-  assert.strictEqual(session.messages[0].role, MessageRole.System, 'should be system message');
+test('LanguageModelSession with instructions adds to transcript', () => {
+  const instructions = new Instructions('You are a helpful assistant.');
+  const session = new LanguageModelSession(
+    SystemLanguageModel.default,
+    Guardrails.default,
+    [],
+    instructions
+  );
+  assert.strictEqual(session.transcript.length, 1, 'transcript should contain instructions entry');
+  assert.strictEqual(session.transcript[0].type, 'instructions', 'entry should be instructions type');
 });
 
 // Test enums
@@ -108,4 +135,30 @@ test('module exports MessageRole enum', () => {
   assert.ok(MessageRole.System, 'MessageRole.System should exist');
   assert.ok(MessageRole.User, 'MessageRole.User should exist');
   assert.ok(MessageRole.Assistant, 'MessageRole.Assistant should exist');
+});
+
+test('module exports Availability enum', () => {
+  assert.ok(Availability, 'Availability should be exported');
+  assert.ok(Availability.Available, 'Availability.Available should exist');
+  assert.ok(Availability.DeviceNotEligible, 'Availability.DeviceNotEligible should exist');
+  assert.ok(Availability.AppleIntelligenceNotEnabled, 'Availability.AppleIntelligenceNotEnabled should exist');
+  assert.ok(Availability.ModelNotReady, 'Availability.ModelNotReady should exist');
+});
+
+test('module exports UseCase enum', () => {
+  assert.ok(UseCase, 'UseCase should be exported');
+  assert.ok(UseCase.ContentTagging, 'UseCase.ContentTagging should exist');
+});
+
+test('module exports Instructions class', () => {
+  assert.ok(Instructions, 'Instructions should be exported');
+  const instructions = new Instructions('Test');
+  assert.ok(instructions, 'Instructions instance should be created');
+  assert.strictEqual(instructions.text, 'Test', 'Instructions should store text');
+});
+
+test('module exports Guardrails class', () => {
+  assert.ok(Guardrails, 'Guardrails should be exported');
+  assert.ok(Guardrails.default, 'Guardrails.default should exist');
+  assert.ok(Guardrails.default instanceof Guardrails, 'Guardrails.default should be a Guardrails instance');
 });

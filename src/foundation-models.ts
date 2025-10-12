@@ -3,14 +3,19 @@ import {
   type LanguageModelInfo,
   type GenerationResult,
   type GenerationConfig,
-  type SessionConfig,
-  type Message,
-  MessageRole,
+  type GenerationOptions,
+  type TranscriptEntry,
+  type Response,
+  Availability,
+  UseCase,
+  Instructions,
+  Guardrails,
+  ToolOutput,
   FinishReason,
 } from './types.js';
 
 /**
- * SystemLanguageModel - Instance-based language model interface
+ * SystemLanguageModel - Apple's on-device language model
  * This is a 1-to-1 mapping of the Swift SystemLanguageModel class
  * 
  * Usage:
@@ -20,23 +25,30 @@ import {
  * 
  * // Check availability
  * if (model.isAvailable) {
- *   // Generate text
- *   const result = await model.generate('Write a haiku', { maxTokens: 100 });
+ *   // Create a session and generate
+ *   const session = new LanguageModelSession(model);
+ *   const response = await session.respond('Hello!');
  * }
+ * 
+ * // Or use a specialized model
+ * const taggingModel = new SystemLanguageModel(UseCase.ContentTagging);
  * ```
  */
 export class SystemLanguageModel {
   private readonly modelId: string;
+  private readonly useCase?: UseCase;
   private modelInfo?: LanguageModelInfo;
+  private static _defaultInstance?: SystemLanguageModel;
 
   /**
    * The default system language model
    * Maps to: SystemLanguageModel.default (static property in Swift)
    */
   static get default(): SystemLanguageModel {
-    // For now, we'll create a default instance
-    // In a real implementation, this would be a singleton
-    return new SystemLanguageModel('default');
+    if (!this._defaultInstance) {
+      this._defaultInstance = new SystemLanguageModel('default');
+    }
+    return this._defaultInstance;
   }
 
   /**
@@ -48,13 +60,28 @@ export class SystemLanguageModel {
   }
 
   /**
-   * Create a new SystemLanguageModel instance
-   * Maps to: SystemLanguageModel(id:) initializer in Swift
+   * Create a SystemLanguageModel for a specific use case
+   * Maps to: SystemLanguageModel(useCase:) initializer in Swift
    * 
+   * @param useCase - The specialized use case for the model
+   */
+  constructor(useCase: UseCase);
+  
+  /**
+   * Create a SystemLanguageModel with a specific model ID (internal use)
    * @param id - The model identifier
    */
-  constructor(id: string) {
-    this.modelId = id;
+  constructor(id: string);
+  
+  constructor(idOrUseCase: string | UseCase) {
+    if (typeof idOrUseCase === 'string') {
+      // String ID constructor (internal)
+      this.modelId = idOrUseCase;
+    } else {
+      // UseCase constructor (public API)
+      this.useCase = idOrUseCase;
+      this.modelId = `useCase-${idOrUseCase}`;
+    }
   }
 
   /**
@@ -65,17 +92,26 @@ export class SystemLanguageModel {
   }
 
   /**
+   * Get the availability status of the model
+   * Maps to: SystemLanguageModel.availability (instance property in Swift)
+   */
+  get availability(): Availability {
+    // This would need to be implemented to actually check availability
+    // For now, return Available as a placeholder
+    return Availability.Available;
+  }
+
+  /**
    * Convenience getter to check if the system is entirely ready
    * Maps to: SystemLanguageModel.isAvailable (instance property in Swift)
    */
   get isAvailable(): boolean {
-    // This would need to be implemented to actually check availability
-    // For now, return true as a placeholder
-    return true;
+    return this.availability === Availability.Available;
   }
 
   /**
-   * Get the model name (lazy loaded)
+   * Get the model name (lazy loaded, for internal use)
+   * @internal
    */
   async getName(): Promise<string> {
     await this.ensureModelInfo();
@@ -83,7 +119,8 @@ export class SystemLanguageModel {
   }
 
   /**
-   * Get the maximum tokens for this model (lazy loaded)
+   * Get the maximum tokens for this model (lazy loaded, for internal use)
+   * @internal
    */
   async getMaxTokens(): Promise<number> {
     await this.ensureModelInfo();
@@ -91,12 +128,9 @@ export class SystemLanguageModel {
   }
 
   /**
-   * Generate text using this language model
+   * Generate text using this language model (internal use - prefer LanguageModelSession)
    * Maps to: SystemLanguageModel.generate(prompt:config:) in Swift
-   * 
-   * @param prompt - The input prompt
-   * @param config - Optional generation configuration
-   * @returns Promise resolving to the generation result
+   * @internal
    */
   async generate(prompt: string, config?: GenerationConfig): Promise<GenerationResult> {
     const result = await executeSwiftCommand<{
@@ -115,20 +149,17 @@ export class SystemLanguageModel {
   }
 
   /**
-   * Generate text with streaming
-   * Maps to: SystemLanguageModel.generateStream(prompt:config:) in Swift
-   * 
-   * @param prompt - The input prompt
-   * @param config - Optional generation configuration
-   * @returns AsyncIterableIterator that yields text chunks
+   * Generate text with streaming (internal use - prefer LanguageModelSession)
+   * @internal
    */
   async *generateStream(prompt: string, config?: GenerationConfig): AsyncIterableIterator<string> {
     // TODO: Implement streaming support
-    throw new Error('Streaming is not yet implemented. Use generate() instead.');
+    throw new Error('Streaming is not yet implemented. Use LanguageModelSession.streamResponse() instead.');
   }
 
   /**
    * Ensure model info is loaded
+   * @internal
    */
   private async ensureModelInfo(): Promise<void> {
     if (this.modelInfo) {
@@ -145,49 +176,69 @@ export class SystemLanguageModel {
 }
 
 /**
- * LanguageModelSession - Session-based interface for conversational interactions
+ * LanguageModelSession - Manages stateful interactions with the language model
  * This is a 1-to-1 mapping of the Swift LanguageModelSession class
  * 
  * Usage:
  * ```typescript
- * // Create a session with a model
- * const models = await SystemLanguageModel.availableModels;
- * const session = new LanguageModelSession(models[0].id, {
- *   systemPrompt: 'You are a helpful assistant.',
- * });
+ * // Create a session with the default model
+ * const session = new LanguageModelSession();
  * 
- * // Send messages and get responses
- * const response1 = await session.generate('Hello!');
- * const response2 = await session.generate('Tell me about TypeScript');
+ * // With instructions
+ * const session = new LanguageModelSession(
+ *   SystemLanguageModel.default,
+ *   Guardrails.default,
+ *   [],
+ *   new Instructions('You are a helpful assistant.')
+ * );
  * 
- * // Access message history
- * const history = session.messages;
+ * // Send a prompt and get a response
+ * const response = await session.respond('Tell me a joke');
+ * console.log(response.content);
  * 
- * // Reset the session
- * session.reset();
+ * // Stream a response
+ * const stream = session.streamResponse('Write a story');
+ * for await (const chunk of stream) {
+ *   console.log(chunk);
+ * }
+ * 
+ * // Access conversation history
+ * const history = session.transcript;
  * ```
  */
 export class LanguageModelSession {
   private readonly model: SystemLanguageModel;
-  private readonly config: SessionConfig;
-  private messageHistory: Message[] = [];
+  private readonly guardrails: Guardrails;
+  private readonly tools: any[];
+  private readonly instructions?: Instructions;
+  private transcriptHistory: TranscriptEntry[] = [];
+  private _isResponding: boolean = false;
 
   /**
-   * Create a new LanguageModelSession instance
-   * Maps to: LanguageModelSession(model:systemPrompt:) initializer in Swift
+   * Create a new LanguageModelSession
+   * Maps to: LanguageModelSession(model:guardrails:tools:instructions:) initializer in Swift
    * 
-   * @param modelId - The model identifier or SystemLanguageModel instance
-   * @param config - Optional session configuration
+   * @param model - The language model to use (defaults to SystemLanguageModel.default)
+   * @param guardrails - Safety guardrails for filtering (defaults to Guardrails.default)
+   * @param tools - Array of tools available for the model to call (defaults to [])
+   * @param instructions - Context, role, and preferences for model responses (optional)
    */
-  constructor(modelId: string | SystemLanguageModel, config?: SessionConfig) {
-    this.model = typeof modelId === 'string' ? new SystemLanguageModel(modelId) : modelId;
-    this.config = config || {};
+  constructor(
+    model: SystemLanguageModel = SystemLanguageModel.default,
+    guardrails: Guardrails = Guardrails.default,
+    tools: any[] = [],
+    instructions?: Instructions
+  ) {
+    this.model = model;
+    this.guardrails = guardrails;
+    this.tools = tools;
+    this.instructions = instructions;
     
-    // Add system prompt to history if provided
-    if (this.config.systemPrompt) {
-      this.messageHistory.push({
-        role: MessageRole.System,
-        content: this.config.systemPrompt,
+    // Add instructions to transcript if provided
+    if (this.instructions) {
+      this.transcriptHistory.push({
+        type: 'instructions',
+        instructions: this.instructions,
       });
     }
   }
@@ -200,101 +251,144 @@ export class LanguageModelSession {
   }
 
   /**
-   * Get the message history for this session
+   * Indicates whether the model is currently generating a response
+   * Maps to: LanguageModelSession.isResponding (instance property in Swift)
    */
-  get messages(): readonly Message[] {
-    return [...this.messageHistory];
+  get isResponding(): boolean {
+    return this._isResponding;
   }
 
   /**
-   * Generate a response in the context of this session
-   * Maps to: LanguageModelSession.generate(prompt:) in Swift
+   * Get the conversation transcript
+   * Maps to: LanguageModelSession.transcript (instance property in Swift)
+   */
+  get transcript(): readonly TranscriptEntry[] {
+    return [...this.transcriptHistory];
+  }
+
+  /**
+   * Send a prompt and get a complete response
+   * Maps to: LanguageModelSession.respond(to:) in Swift
    * 
-   * @param prompt - The user's input prompt
-   * @param config - Optional generation configuration (overrides session defaults)
-   * @returns Promise resolving to the generation result
+   * @param prompt - The text prompt to send to the model
+   * @returns Promise resolving to Response containing the model's reply
    */
-  async generate(prompt: string, config?: GenerationConfig): Promise<GenerationResult> {
-    // Add user message to history
-    this.messageHistory.push({
-      role: MessageRole.User,
-      content: prompt,
-    });
-
-    // Build context from message history
-    const contextPrompt = this.buildContextPrompt();
-
-    // Merge configs (parameter config overrides session config)
-    const mergedConfig = {
-      ...this.config.generationConfig,
-      ...config,
-    };
-
-    // Generate response
-    const result = await this.model.generate(contextPrompt, mergedConfig);
-
-    // Add assistant response to history
-    this.messageHistory.push({
-      role: MessageRole.Assistant,
-      content: result.text,
-    });
-
-    return result;
-  }
-
+  async respond(prompt: string): Promise<Response<string>>;
+  
   /**
-   * Generate a response with streaming
-   * Maps to: LanguageModelSession.generateStream(prompt:) in Swift
+   * Send a prompt with custom generation options
+   * Maps to: LanguageModelSession.respond(to:options:) in Swift
    * 
-   * @param prompt - The user's input prompt
-   * @param config - Optional generation configuration
-   * @returns AsyncIterableIterator that yields text chunks
+   * @param prompt - The text prompt to send
+   * @param options - Configuration for generation behavior
+   * @returns Promise resolving to Response containing the model's reply
    */
-  async *generateStream(prompt: string, config?: GenerationConfig): AsyncIterableIterator<string> {
-    // Add user message to history
-    this.messageHistory.push({
-      role: MessageRole.User,
-      content: prompt,
-    });
-
-    // TODO: Implement streaming support with proper history management
-    throw new Error('Streaming is not yet implemented for sessions. Use generate() instead.');
-  }
-
-  /**
-   * Reset the session, clearing all message history
-   * Maps to: LanguageModelSession.reset() in Swift
-   */
-  reset(): void {
-    this.messageHistory = [];
+  async respond(prompt: string, options: GenerationOptions): Promise<Response<string>>;
+  
+  async respond(prompt: string, options?: GenerationOptions): Promise<Response<string>> {
+    this._isResponding = true;
     
-    // Re-add system prompt if it was configured
-    if (this.config.systemPrompt) {
-      this.messageHistory.push({
-        role: MessageRole.System,
-        content: this.config.systemPrompt,
+    try {
+      // Add prompt to transcript
+      this.transcriptHistory.push({
+        type: 'prompt',
+        content: prompt,
       });
+
+      // Build context from transcript
+      const contextPrompt = this.buildContextPrompt();
+
+      // Convert options to legacy config format
+      const config: GenerationConfig = {
+        maxTokens: options?.maximumResponseTokens,
+        temperature: options?.temperature,
+      };
+
+      // Generate response
+      const result = await this.model.generate(contextPrompt, config);
+
+      // Add response to transcript
+      this.transcriptHistory.push({
+        type: 'response',
+        content: result.text,
+      });
+
+      return {
+        content: result.text,
+        transcriptEntries: [...this.transcriptHistory],
+      };
+    } finally {
+      this._isResponding = false;
     }
   }
 
   /**
-   * Build a context prompt from message history
-   * This creates a formatted prompt that includes the conversation context
+   * Stream the model's response incrementally
+   * Maps to: LanguageModelSession.streamResponse(to:) in Swift
+   * 
+   * @param prompt - The text prompt to send
+   * @returns AsyncIterable that yields text chunks
+   */
+  async *streamResponse(prompt: string): AsyncIterableIterator<string> {
+    this._isResponding = true;
+    
+    try {
+      // Add prompt to transcript
+      this.transcriptHistory.push({
+        type: 'prompt',
+        content: prompt,
+      });
+
+      // TODO: Implement actual streaming
+      throw new Error('Streaming is not yet implemented. Use respond() instead.');
+    } finally {
+      this._isResponding = false;
+    }
+  }
+
+  /**
+   * Preload session resources for faster initial responses
+   * Maps to: LanguageModelSession.prewarm() in Swift
+   */
+  async prewarm(): Promise<void> {
+    // TODO: Implement prewarming
+    // This would typically initialize resources in the Swift layer
+  }
+
+  /**
+   * Preload session with a prompt prefix for optimized generation
+   * Maps to: LanguageModelSession.prewarm(promptPrefix:) in Swift
+   * 
+   * @param promptPrefix - The prompt prefix to preload
+   */
+  async prewarmWithPrefix(promptPrefix: string): Promise<void> {
+    // TODO: Implement prewarming with prefix
+    // This would pass the prefix to the Swift layer for optimization
+  }
+
+  /**
+   * Build a context prompt from transcript history
+   * @internal
    */
   private buildContextPrompt(): string {
-    return this.messageHistory
-      .map(msg => {
-        switch (msg.role) {
-          case MessageRole.System:
-            return `System: ${msg.content}`;
-          case MessageRole.User:
-            return `User: ${msg.content}`;
-          case MessageRole.Assistant:
-            return `Assistant: ${msg.content}`;
+    return this.transcriptHistory
+      .map(entry => {
+        switch (entry.type) {
+          case 'instructions':
+            return `Instructions: ${entry.instructions.text}`;
+          case 'prompt':
+            return `User: ${entry.content}`;
+          case 'response':
+            return `Assistant: ${entry.content}`;
+          case 'toolCalls':
+            return `Tools called: ${entry.calls.length}`;
+          case 'toolOutput':
+            return `Tool output: ${JSON.stringify(entry.output)}`;
           default:
-            return msg.content;
+            return '';
         }
       })
+      .filter(Boolean)
       .join('\n\n');
   }
 }
