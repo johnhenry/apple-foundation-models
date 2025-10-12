@@ -30,14 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive API documentation in README
 - Updated IMPLEMENTATION.md with architecture details
 
-### Changed
-- **FoundationModels class** marked as deprecated (still available for backward compatibility)
-- All static API methods now delegate to new instance-based classes
-- README restructured to highlight new recommended APIs
-- Export structure updated to include new classes and types
+### Removed
+- **FoundationModels class** - Deprecated static API removed (BREAKING CHANGE)
+  - Use `LanguageModel` class instead
+  - Migration: `FoundationModels.listAvailableModels()` → `LanguageModel.availableModels`
+  - Migration: `FoundationModels.generateText({...})` → `new LanguageModel(id).generate(...)`
+- Default export removed (use named exports instead)
 
-### Deprecated
-- `FoundationModels` static API (use `LanguageModel` and `LanguageModelSession` instead)
+### Changed
+- README restructured to highlight instance-based APIs
+- Export structure updated to only include new classes and types
+- All examples updated to use new API
 
 ### Known Limitations
 - Streaming generation not yet implemented

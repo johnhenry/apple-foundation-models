@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { LanguageModel, LanguageModelSession, FoundationModels, FinishReason, MessageRole } from '../dist/index.mjs';
+import { LanguageModel, LanguageModelSession, FinishReason, MessageRole } from '../dist/index.mjs';
 
 // Test new LanguageModel class
 test('module exports LanguageModel class', () => {
@@ -81,30 +81,6 @@ test('LanguageModelSession reset clears messages but preserves system prompt', (
   session.reset();
   assert.strictEqual(session.messages.length, 1, 'should still have system prompt after reset');
   assert.strictEqual(session.messages[0].role, MessageRole.System, 'should be system message');
-});
-
-// Test legacy FoundationModels class
-test('module exports FoundationModels class (legacy)', () => {
-  assert.ok(FoundationModels, 'FoundationModels should be exported');
-  assert.strictEqual(typeof FoundationModels, 'function', 'FoundationModels should be a class/constructor');
-});
-
-test('FoundationModels has expected methods', () => {
-  assert.ok(typeof FoundationModels.listAvailableModels === 'function', 'listAvailableModels should be a function');
-  assert.ok(typeof FoundationModels.generateText === 'function', 'generateText should be a function');
-  assert.ok(typeof FoundationModels.generateStream === 'function', 'generateStream should be a function');
-});
-
-test('FoundationModels.generateStream throws not implemented error', async () => {
-  await assert.rejects(
-    async () => {
-      await FoundationModels.generateStream({ prompt: 'test' });
-    },
-    {
-      message: /Streaming is not yet implemented/,
-    },
-    'generateStream should throw not implemented error'
-  );
 });
 
 // Test enums

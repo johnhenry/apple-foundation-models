@@ -37,9 +37,9 @@ npm run build:swift
 
 ## Usage
 
-### Instance-based API (Recommended - 1-to-1 Swift mapping)
+### Instance-based API (1-to-1 Swift mapping)
 
-The new `LanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
+The `LanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
 
 ```typescript
 import { LanguageModel } from 'apple-foundation-models';
@@ -97,24 +97,6 @@ console.log('Messages:', session.messages.length);
 
 // Reset the session
 session.reset();
-```
-
-### Legacy Static API (Deprecated)
-
-The original static API is still available for backward compatibility:
-
-```typescript
-import { FoundationModels } from 'apple-foundation-models';
-
-// List available models
-const models = await FoundationModels.listAvailableModels();
-
-// Generate text
-const result = await FoundationModels.generateText({
-  prompt: 'Write a haiku about TypeScript',
-  maxTokens: 100,
-  temperature: 0.7,
-});
 ```
 
 ## API Reference
@@ -294,54 +276,6 @@ session.reset(); // Clear conversation history
 
 ---
 
-### `FoundationModels` (Deprecated)
-
-Legacy static API wrapper for backward compatibility.
-
-### `FoundationModels.listAvailableModels()`
-
-Returns a list of available language models.
-
-**Returns**: `Promise<LanguageModelInfo[]>`
-
-```typescript
-interface LanguageModelInfo {
-  id: string;          // Unique identifier
-  name: string;        // Human-readable name
-  maxTokens: number;   // Maximum tokens
-}
-```
-
-### `FoundationModels.generateText(params)`
-
-Generates text using a language model.
-
-**Parameters**:
-```typescript
-interface GenerateTextParams {
-  prompt: string;       // Input prompt
-  modelId?: string;     // Optional model ID
-  maxTokens?: number;   // Maximum tokens to generate
-  temperature?: number; // Sampling temperature (0.0-1.0)
-}
-```
-
-**Returns**: `Promise<GenerationResult>`
-
-```typescript
-interface GenerationResult {
-  text: string;              // Generated text
-  finishReason: FinishReason; // Why generation stopped
-}
-
-enum FinishReason {
-  Stop = 'stop',                    // Natural completion
-  Length = 'length',                // Hit token limit
-  ContentFilter = 'contentFilter',  // Content filtered
-  Unknown = 'unknown',              // Unknown reason
-}
-```
-
 ## Architecture
 
 This package consists of three main components:
@@ -450,7 +384,7 @@ MIT
   - `MessageRole` enum (`System`, `User`, `Assistant`)
   - `SessionConfig` for session configuration
 - 📚 Comprehensive documentation with examples
-- ⚠️ `FoundationModels` static API marked as deprecated (still available for backward compatibility)
+- 🗑️ **REMOVED**: Deprecated `FoundationModels` static API (breaking change - use `LanguageModel` instead)
 - 📝 Added new examples: `instance-based-api.mjs`, `session-based-api.mjs`
 
 ### 0.0.0 (Initial Release)

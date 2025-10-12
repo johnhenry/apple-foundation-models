@@ -55,5 +55,8 @@
   "bugs": {
     "url": "https://github.com/johnhenry/apple-foundation-models/issues"
   },
-  "homepage": "https://github.com/johnhenry/apple-foundation-models#readme"
+  "homepage": "https://github.com/johnhenry/apple-foundation-models#readme",
+  "os": [
+    "darwin"
+  ]
 }

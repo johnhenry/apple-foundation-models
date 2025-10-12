@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 
-export { LanguageModel, LanguageModelSession, FoundationModels } from './foundation-models.js';
+export { LanguageModel, LanguageModelSession } from './foundation-models.js';
 export type {
   LanguageModelInfo,
   GenerationConfig,
@@ -18,6 +18,3 @@ export type {
   GenerateStreamParams,
 } from './types.js';
 export { FinishReason, MessageRole } from './types.js';
-
-// Default export (legacy)
-export { default } from './foundation-models.js';
