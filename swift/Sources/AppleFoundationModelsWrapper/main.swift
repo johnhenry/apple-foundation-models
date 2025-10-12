@@ -78,6 +78,10 @@ class FoundationModelsWrapper {
             return try await generateText(parameters: command.parameters)
         case "generateStream":
             return try await generateStream(parameters: command.parameters)
+        case "prewarm":
+            return try await prewarm(parameters: command.parameters)
+        case "prewarmWithPrefix":
+            return try await prewarmWithPrefix(parameters: command.parameters)
         default:
             return CommandResponse(
                 success: false,
@@ -235,6 +239,67 @@ class FoundationModelsWrapper {
 
         // Return success (won't be printed since we already sent chunks)
         return finalResponse
+    }
+
+    private func prewarm(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Prewarm the session
+        try await session.prewarm()
+
+        return CommandResponse(
+            success: true,
+            data: AnyCodable(["message": "Session prewarmed successfully"]),
+            error: nil
+        )
+    }
+
+    private func prewarmWithPrefix(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+        guard let params = parameters else {
+            return CommandResponse(success: false, data: nil, error: "Missing parameters")
+        }
+
+        guard let prefix = params["prefix"]?.value as? String else {
+            return CommandResponse(success: false, data: nil, error: "Missing 'prefix' parameter")
+        }
+
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Prewarm the session with prefix
+        // Note: prewarm(promptPrefix:) might need a Prompt type in newer APIs
+        try await session.prewarm(promptPrefix: Prompt(prefix))
+
+        return CommandResponse(
+            success: true,
+            data: AnyCodable(["message": "Session prewarmed with prefix successfully"]),
+            error: nil
+        )
     }
 }
 #endif

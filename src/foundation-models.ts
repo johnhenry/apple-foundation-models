@@ -152,11 +152,18 @@ export class SystemLanguageModel {
 
   /**
    * Generate text with streaming (internal use - prefer LanguageModelSession)
+   * Maps to: SystemLanguageModel streaming functionality in Swift
    * @internal
    */
   async *generateStream(prompt: string, config?: GenerationConfig): AsyncIterableIterator<string> {
-    // TODO: Implement streaming support
-    throw new Error('Streaming is not yet implemented. Use LanguageModelSession.streamResponse() instead.');
+    // Use the stream executor to get chunks
+    for await (const chunk of executeSwiftStreamCommand('generateStream', {
+      prompt,
+      modelId: this.modelId,
+      ...config,
+    })) {
+      yield chunk;
+    }
   }
 
   /**
@@ -366,21 +373,25 @@ export class LanguageModelSession {
   /**
    * Preload session resources for faster initial responses
    * Maps to: LanguageModelSession.prewarm() in Swift
+   *
+   * Prewarming initializes the model and allocates resources ahead of time,
+   * reducing latency for the first generation request.
    */
   async prewarm(): Promise<void> {
-    // TODO: Implement prewarming
-    // This would typically initialize resources in the Swift layer
+    await executeSwiftCommand('prewarm', {});
   }
 
   /**
    * Preload session with a prompt prefix for optimized generation
    * Maps to: LanguageModelSession.prewarm(promptPrefix:) in Swift
-   * 
+   *
+   * Prewarming with a prefix allows the model to process and cache the prefix,
+   * which can significantly speed up generation when using that prefix.
+   *
    * @param promptPrefix - The prompt prefix to preload
    */
   async prewarmWithPrefix(promptPrefix: string): Promise<void> {
-    // TODO: Implement prewarming with prefix
-    // This would pass the prefix to the Swift layer for optimization
+    await executeSwiftCommand('prewarmWithPrefix', { prefix: promptPrefix });
   }
 
   /**
