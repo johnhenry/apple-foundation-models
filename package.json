@@ -24,10 +24,10 @@
     "build:js": "rolldown -c rolldown.config.js",
     "build": "npm run build:js && npm run build:types",
     "clean": "rm -rf dist node_modules swift/.build",
-    "postinstall": "node scripts/build-swift.js",
     "prepare": "npm run build",
     "test": "node --test",
-    "validate": "node scripts/validate.js"
+    "validate": "node scripts/validate.js",
+    "postinstall": "node scripts/build-swift.js"
   },
   "keywords": [
     "apple",
@@ -43,9 +43,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "os": [
-    "darwin"
-  ],
   "devDependencies": {
     "@types/node": "^24.7.2",
     "rolldown": "^1.0.0-beta.42",
@@ -58,5 +55,8 @@
   "bugs": {
     "url": "https://github.com/johnhenry/apple-foundation-models/issues"
   },
-  "homepage": "https://github.com/johnhenry/apple-foundation-models#readme"
+  "homepage": "https://github.com/johnhenry/apple-foundation-models#readme",
+  "os": [
+    "darwin"
+  ]
 }

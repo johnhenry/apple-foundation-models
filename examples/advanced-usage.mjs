@@ -7,15 +7,14 @@
  * 3. Multiple generation attempts with different parameters
  */
 
-import { FoundationModels } from '../dist/index.mjs';
+import { SystemLanguageModel } from '../dist/index.mjs';
 
-async function generateWithRetry(prompt, maxRetries = 3) {
+async function generateWithRetry(model, prompt, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`\n🔄 Attempt ${attempt}/${maxRetries}...`);
       
-      const result = await FoundationModels.generateText({
-        prompt,
+      const result = await model.generate(prompt, {
         maxTokens: 150,
         temperature: 0.7,
       });
@@ -40,7 +39,7 @@ async function main() {
   try {
     // Check available models first
     console.log('📋 Checking available models...');
-    const models = await FoundationModels.listAvailableModels();
+    const models = await SystemLanguageModel.availableModels;
     
     if (models.length === 0) {
       console.warn('⚠️  No models available. This may happen if:');
@@ -51,6 +50,10 @@ async function main() {
     }
     
     console.log(`✓ Found ${models.length} model(s)\n`);
+    
+    // Create a model instance
+    const model = new SystemLanguageModel(models[0].id);
+    console.log(`Using model: ${await model.getName()}\n`);
     
     // Generate with retry logic
     const prompts = [
@@ -64,7 +67,7 @@ async function main() {
       console.log('─'.repeat(60));
       
       try {
-        const result = await generateWithRetry(prompt);
+        const result = await generateWithRetry(model, prompt);
         console.log('\n✨ Generated text:');
         console.log(result.text);
         console.log(`\n📊 Finish reason: ${result.finishReason}`);

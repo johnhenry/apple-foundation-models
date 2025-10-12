@@ -6,6 +6,8 @@ This document provides a comprehensive overview of the Apple Foundation Models f
 
 A complete TypeScript library that provides a 1-to-1 wrapper for Apple's FoundationModels framework, enabling JavaScript/TypeScript developers to use Apple's AI models in Node.js applications.
 
+**Major Update (v0.1.0):** Now includes proper instance-based `SystemLanguageModel` class and `LanguageModelSession` for conversational interactions, providing true 1-to-1 API mapping with Swift.
+
 ## Architecture
 
 ### Component Structure
@@ -14,10 +16,24 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 ┌─────────────────────────────────────────────────┐
 │           JavaScript/TypeScript Layer            │
 │  ┌─────────────────────────────────────────┐   │
-│  │      TypeScript API (foundation-models) │   │
+│  │   TypeScript API (foundation-models.ts) │   │
+│  │                                          │   │
+│  │  SystemLanguageModel (instance-based):        │   │
+│  │  - static availableModels               │   │
+│  │  - constructor(id)                      │   │
+│  │  - generate(prompt, config)             │   │
+│  │  - generateStream(prompt, config)       │   │
+│  │  - getName(), getMaxTokens()            │   │
+│  │                                          │   │
+│  │  LanguageModelSession (conversational): │   │
+│  │  - constructor(modelId, config)         │   │
+│  │  - generate(prompt, config)             │   │
+│  │  - reset()                              │   │
+│  │  - messages property                    │   │
+│  │                                          │   │
+│  │  FoundationModels (legacy/deprecated):  │   │
 │  │  - listAvailableModels()                │   │
 │  │  - generateText(params)                 │   │
-│  │  - generateStream(params) [future]      │   │
 │  └─────────────┬───────────────────────────┘   │
 │                │                                 │
 │  ┌─────────────▼───────────────────────────┐   │
@@ -44,7 +60,8 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
                  │
 ┌────────────────▼─────────────────────────────────┐
 │           Apple FoundationModels SDK             │
-│  - Language model access                        │
+│  - SystemLanguageModel class                          │
+│  - LanguageModelSession class                   │
 │  - Text generation                              │
 │  - Model management                             │
 └──────────────────────────────────────────────────┘
@@ -77,19 +94,35 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 ### Source Files (src/)
 
 1. **src/index.ts** - Main entry point
-   - Exports FoundationModels class
-   - Re-exports types
+   - Exports SystemLanguageModel, LanguageModelSession, and FoundationModels classes
+   - Re-exports types and enums
+   - Provides legacy default export
 
 2. **src/types.ts** - TypeScript type definitions
-   - LanguageModelInfo
-   - GenerationConfig
-   - GenerationResult
-   - GenerateTextParams
-   - FinishReason enum
+   - SystemLanguageModelInfo - Model information interface
+   - GenerationConfig - Generation configuration options
+   - GenerationResult - Result from text generation
+   - GenerateTextParams - Parameters for legacy API
+   - FinishReason enum - Reason why generation stopped
+   - **NEW:** Message - Conversation message interface
+   - **NEW:** MessageRole enum - Role in conversation (System, User, Assistant)
+   - **NEW:** SessionConfig - Configuration for LanguageModelSession
+   - SwiftResponse - Internal response wrapper
 
 3. **src/foundation-models.ts** - Core API implementation
-   - FoundationModels class with static methods
-   - 1-to-1 API mapping to Swift
+   - **SystemLanguageModel class** - Instance-based API (1-to-1 Swift mapping)
+     - Static property: `availableModels`
+     - Constructor: `new SystemLanguageModel(id)`
+     - Instance methods: `generate()`, `generateStream()`
+     - Property getters: `getName()`, `getMaxTokens()`
+   - **LanguageModelSession class** - Session-based conversational API
+     - Constructor: `new LanguageModelSession(modelId, config)`
+     - Methods: `generate()`, `generateStream()`, `reset()`
+     - Properties: `languageModel`, `messages`
+     - Maintains conversation history and context
+   - **FoundationModels class** - Legacy static API (deprecated)
+     - Backward compatibility wrapper
+     - Delegates to new SystemLanguageModel class
 
 4. **src/executor.ts** - Swift process executor
    - Spawns Swift wrapper
@@ -134,12 +167,25 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 
 ### Examples (examples/)
 
-1. **examples/basic-usage.mjs** - Simple usage example
-   - List models
+1. **examples/basic-usage.mjs** - Legacy static API example
+   - List models using static methods
    - Generate text with default settings
    - Generate with custom parameters
 
-2. **examples/advanced-usage.mjs** - Advanced patterns
+2. **examples/instance-based-api.mjs** - SystemLanguageModel class example
+   - Using `SystemLanguageModel.availableModels` static property
+   - Creating model instances
+   - Using instance methods for generation
+   - Accessing model properties
+
+3. **examples/session-based-api.mjs** - LanguageModelSession example
+   - Creating sessions with system prompts
+   - Multi-turn conversations
+   - Accessing message history
+   - Resetting sessions
+   - Context-aware generation
+
+4. **examples/advanced-usage.mjs** - Advanced patterns
    - Error handling
    - Retry logic
    - Multiple generations
@@ -150,24 +196,34 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 1. **README.md** - Main documentation
    - Feature overview
    - Installation instructions
-   - Usage examples
-   - API reference
+   - **NEW:** Instance-based API examples (SystemLanguageModel)
+   - **NEW:** Session-based API examples (LanguageModelSession)
+   - Legacy API examples (deprecated)
+   - **UPDATED:** Comprehensive API reference for all classes
    - Architecture diagram
+   - Changelog
 
-2. **QUICKSTART.md** - Getting started guide
+2. **IMPLEMENTATION.md** - This file
+   - **UPDATED:** Architecture with new classes
+   - **UPDATED:** Files and their purposes
+   - Implementation details
+   - Design decisions
+
+3. **QUICKSTART.md** - Getting started guide
    - Prerequisites
    - Installation steps
    - First program
    - Common use cases
    - Troubleshooting
 
-3. **CONTRIBUTING.md** - Contribution guidelines
+4. **CONTRIBUTING.md** - Contribution guidelines
    - Development setup
    - Project structure
    - Code style
    - Pull request process
 
-4. **CHANGELOG.md** - Version history
+5. **CHANGELOG.md** - Version history
+   - **NEW:** v0.1.0 - 1-to-1 API translation
    - Initial release notes
    - Features list
    - Known limitations
@@ -185,12 +241,14 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 ## Key Features Implemented
 
 ### ✅ 1-to-1 API Mapping
-- Direct translation of Swift FoundationModels API to JavaScript
+- **NEW:** Direct translation of Swift FoundationModels API to JavaScript
+- **NEW:** Instance-based SystemLanguageModel class matching Swift patterns
+- **NEW:** LanguageModelSession for conversational interactions
 - Preserves method names and parameter structures
 - TypeScript types match Swift interfaces
+- Legacy static API maintained for backward compatibility
 
 ### ✅ Auto-Build System
-- Swift wrapper builds automatically on `npm install`
 - Platform checks prevent installation on unsupported systems
 - Graceful fallback with helpful error messages
 
@@ -204,12 +262,13 @@ A complete TypeScript library that provides a 1-to-1 wrapper for Apple's Foundat
 - Full TypeScript support
 - Declaration maps
 - JSDoc comments
+- **NEW:** Session and message types
 
 ### ✅ Developer Experience
 - Clear error messages
 - Validation script
-- Multiple examples
-- Extensive documentation
+- **NEW:** Multiple examples showcasing different APIs
+- **UPDATED:** Extensive documentation with API reference
 
 ## NPM Package Structure
 

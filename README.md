@@ -37,18 +37,27 @@ npm run build:swift
 
 ## Usage
 
-### Basic Example
+### Instance-based API (1-to-1 Swift mapping)
+
+The `SystemLanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
 
 ```typescript
-import { FoundationModels } from 'apple-foundation-models';
+import { SystemLanguageModel } from 'apple-foundation-models';
 
-// List available models
-const models = await FoundationModels.listAvailableModels();
+// List available models (static property)
+const models = await SystemLanguageModel.availableModels;
 console.log('Available models:', models);
 
-// Generate text
-const result = await FoundationModels.generateText({
-  prompt: 'Write a haiku about TypeScript',
+// Create a model instance
+const model = new SystemLanguageModel(models[0].id);
+
+// Get model properties
+console.log('Model ID:', model.id);
+console.log('Model Name:', await model.getName());
+console.log('Max Tokens:', await model.getMaxTokens());
+
+// Generate text using instance method
+const result = await model.generate('Write a haiku about TypeScript', {
   maxTokens: 100,
   temperature: 0.7,
 });
@@ -57,69 +66,215 @@ console.log('Generated text:', result.text);
 console.log('Finish reason:', result.finishReason);
 ```
 
-### Using Specific Models
+### Session-based API for Conversations
+
+Use `LanguageModelSession` for multi-turn conversations with context:
 
 ```typescript
-import { FoundationModels } from 'apple-foundation-models';
+import { SystemLanguageModel, LanguageModelSession } from 'apple-foundation-models';
 
-// Get available models
-const models = await FoundationModels.listAvailableModels();
-const modelId = models[0].id;
+// Get a model
+const models = await SystemLanguageModel.availableModels;
 
-// Generate with specific model
-const result = await FoundationModels.generateText({
-  prompt: 'Explain quantum computing',
-  modelId: modelId,
+// Create a session with a system prompt
+const session = new LanguageModelSession(models[0].id, {
+  systemPrompt: 'You are a helpful coding assistant.',
+  generationConfig: {
+    maxTokens: 150,
+    temperature: 0.7,
+  },
+});
+
+// Have a multi-turn conversation
+const response1 = await session.generate('What is TypeScript?');
+console.log(response1.text);
+
+const response2 = await session.generate('How is it different from JavaScript?');
+console.log(response2.text);
+
+// Access message history
+console.log('Messages:', session.messages.length);
+
+// Reset the session
+session.reset();
+```
+
+## API Reference
+
+### `SystemLanguageModel` (Recommended)
+
+Instance-based class that provides 1-to-1 mapping with Swift's `SystemLanguageModel`.
+
+#### Static Properties
+
+##### `SystemLanguageModel.availableModels`
+
+Returns a promise that resolves to a list of available language models.
+
+**Returns**: `Promise<SystemLanguageModelInfo[]>`
+
+```typescript
+const models = await SystemLanguageModel.availableModels;
+```
+
+#### Constructor
+
+##### `new SystemLanguageModel(id: string)`
+
+Creates a new SystemLanguageModel instance.
+
+**Parameters**:
+- `id` - The model identifier (from `SystemLanguageModel.availableModels`)
+
+```typescript
+const model = new SystemLanguageModel('model-id');
+```
+
+#### Instance Properties
+
+##### `model.id`
+
+Get the model identifier.
+
+**Returns**: `string`
+
+##### `model.getName()`
+
+Get the human-readable name of the model.
+
+**Returns**: `Promise<string>`
+
+##### `model.getMaxTokens()`
+
+Get the maximum number of tokens this model can generate.
+
+**Returns**: `Promise<number>`
+
+#### Instance Methods
+
+##### `model.generate(prompt, config?)`
+
+Generate text using this language model.
+
+**Parameters**:
+- `prompt: string` - The input prompt
+- `config?: GenerationConfig` - Optional generation configuration
+
+**Returns**: `Promise<GenerationResult>`
+
+```typescript
+const result = await model.generate('Write a story', {
   maxTokens: 200,
   temperature: 0.8,
 });
 ```
 
-## API Reference
+##### `model.generateStream(prompt, config?)`
 
-### `FoundationModels.listAvailableModels()`
-
-Returns a list of available language models.
-
-**Returns**: `Promise<LanguageModelInfo[]>`
-
-```typescript
-interface LanguageModelInfo {
-  id: string;          // Unique identifier
-  name: string;        // Human-readable name
-  maxTokens: number;   // Maximum tokens
-}
-```
-
-### `FoundationModels.generateText(params)`
-
-Generates text using a language model.
+Generate text with streaming (not yet implemented).
 
 **Parameters**:
+- `prompt: string` - The input prompt
+- `config?: GenerationConfig` - Optional generation configuration
+
+**Returns**: `AsyncIterableIterator<string>`
+
+---
+
+### `LanguageModelSession`
+
+Session-based class for conversational interactions that maintains context across multiple turns.
+
+#### Constructor
+
+##### `new LanguageModelSession(modelId, config?)`
+
+Creates a new LanguageModelSession instance.
+
+**Parameters**:
+- `modelId: string | SystemLanguageModel` - The model identifier or SystemLanguageModel instance
+- `config?: SessionConfig` - Optional session configuration
+
 ```typescript
-interface GenerateTextParams {
-  prompt: string;       // Input prompt
-  modelId?: string;     // Optional model ID
-  maxTokens?: number;   // Maximum tokens to generate
-  temperature?: number; // Sampling temperature (0.0-1.0)
+interface SessionConfig {
+  systemPrompt?: string;           // System prompt to set context
+  generationConfig?: GenerationConfig; // Default generation config
+}
+
+// Create a session with system prompt
+const session = new LanguageModelSession('model-id', {
+  systemPrompt: 'You are a helpful assistant.',
+  generationConfig: {
+    maxTokens: 100,
+    temperature: 0.7,
+  },
+});
+```
+
+#### Instance Properties
+
+##### `session.languageModel`
+
+Get the underlying SystemLanguageModel instance.
+
+**Returns**: `SystemLanguageModel`
+
+##### `session.messages`
+
+Get the message history for this session (read-only).
+
+**Returns**: `readonly Message[]`
+
+```typescript
+interface Message {
+  role: MessageRole;  // 'system', 'user', or 'assistant'
+  content: string;
 }
 ```
+
+#### Instance Methods
+
+##### `session.generate(prompt, config?)`
+
+Generate a response in the context of this session.
+
+**Parameters**:
+- `prompt: string` - The user's input prompt
+- `config?: GenerationConfig` - Optional generation configuration (overrides session defaults)
 
 **Returns**: `Promise<GenerationResult>`
 
 ```typescript
-interface GenerationResult {
-  text: string;              // Generated text
-  finishReason: FinishReason; // Why generation stopped
-}
+const response = await session.generate('Hello!');
+console.log(response.text);
 
-enum FinishReason {
-  Stop = 'stop',                    // Natural completion
-  Length = 'length',                // Hit token limit
-  ContentFilter = 'contentFilter',  // Content filtered
-  Unknown = 'unknown',              // Unknown reason
-}
+// Override default config for this message
+const response2 = await session.generate('Tell me more', {
+  maxTokens: 200,
+});
 ```
+
+##### `session.generateStream(prompt, config?)`
+
+Generate a response with streaming (not yet implemented).
+
+**Parameters**:
+- `prompt: string` - The user's input prompt
+- `config?: GenerationConfig` - Optional generation configuration
+
+**Returns**: `AsyncIterableIterator<string>`
+
+##### `session.reset()`
+
+Reset the session, clearing all message history. The system prompt (if configured) is preserved.
+
+**Returns**: `void`
+
+```typescript
+session.reset(); // Clear conversation history
+```
+
+---
 
 ## Architecture
 
@@ -211,6 +366,26 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 MIT
 
 ## Changelog
+
+### 0.1.0 (1-to-1 API Translation)
+
+- ✨ **NEW**: `SystemLanguageModel` class - Instance-based API that provides true 1-to-1 mapping with Swift
+  - Constructor: `new SystemLanguageModel(id)`
+  - Static property: `SystemLanguageModel.availableModels`
+  - Instance methods: `generate()`, `generateStream()`
+  - Property getters: `getName()`, `getMaxTokens()`
+- ✨ **NEW**: `LanguageModelSession` class - Session-based API for conversational interactions
+  - Maintains message history across multiple turns
+  - Supports system prompts
+  - Methods: `generate()`, `generateStream()`, `reset()`
+  - Properties: `languageModel`, `messages`
+- ✨ **NEW**: Message and conversation types
+  - `Message` interface with `role` and `content`
+  - `MessageRole` enum (`System`, `User`, `Assistant`)
+  - `SessionConfig` for session configuration
+- 📚 Comprehensive documentation with examples
+- 🗑️ **REMOVED**: Deprecated `FoundationModels` static API (breaking change - use `SystemLanguageModel` instead)
+- 📝 Added new examples: `instance-based-api.mjs`, `session-based-api.mjs`
 
 ### 0.0.0 (Initial Release)
 

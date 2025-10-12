@@ -7,15 +7,39 @@
  * @packageDocumentation
  */
 
-export { FoundationModels } from './foundation-models.js';
-export type {
-  LanguageModelInfo,
-  GenerationConfig,
+export { SystemLanguageModel, LanguageModelSession } from './foundation-models.js';
+
+// Export all types and enums
+export {
+  // SystemLanguageModel types
+  Availability,
+  UseCase,
+  
+  // LanguageModelSession types
+  SamplingMode,
+  Instructions,
+  Guardrails,
+  ToolOutput,
+  
+  // Legacy types (for backward compatibility)
   FinishReason,
+  MessageRole,
+} from './types.js';
+
+export type {
+  // SystemLanguageModel types
+  LanguageModelInfo,
+  
+  // LanguageModelSession types
+  GenerationOptions,
+  TranscriptEntry,
+  Response,
+  
+  // Legacy types (for backward compatibility)
+  GenerationConfig,
   GenerationResult,
   GenerateTextParams,
   GenerateStreamParams,
+  Message,
+  SessionConfig,
 } from './types.js';
-
-// Default export
-export { default } from './foundation-models.js';
