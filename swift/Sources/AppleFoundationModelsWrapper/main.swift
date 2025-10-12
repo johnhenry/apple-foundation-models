@@ -415,11 +415,21 @@ actor PersistentServer {
 
     private func acceptConnections() async {
         while isRunning {
-            // Accept connection (blocking call)
+            // Set socket to non-blocking to allow checking isRunning
+            let flags = fcntl(serverSocket, F_GETFL, 0)
+            _ = fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK)
+
+            // Accept connection (non-blocking)
             let client = accept(serverSocket, nil, nil)
-            guard client != -1 else {
-                if isRunning {
-                    fputs("[Server] Accept failed: \(String(cString: strerror(errno)))\n", stderr)
+
+            if client == -1 {
+                let err = errno
+                if err == EAGAIN || err == EWOULDBLOCK {
+                    // No connection available, sleep briefly and retry
+                    try? await Task.sleep(for: .milliseconds(100))
+                    continue
+                } else if isRunning {
+                    fputs("[Server] Accept failed: \(String(cString: strerror(err)))\n", stderr)
                 }
                 continue
             }
@@ -433,6 +443,11 @@ actor PersistentServer {
     }
 
     private func handleClient(_ socket: Int32) async {
+        // Set client socket to blocking mode (accept loop may have left it non-blocking)
+        var flags = fcntl(socket, F_GETFL, 0)
+        flags &= ~O_NONBLOCK
+        _ = fcntl(socket, F_SETFL, flags)
+
         var buffer = ""
         let bufferSize = 4096
         var readBuffer = [UInt8](repeating: 0, count: bufferSize)
@@ -714,11 +729,25 @@ struct AppleFoundationModelsWrapperMain {
             let server = PersistentServer(socketPath: socketPath)
             try await server.start()
 
-            // Keep server running
-            printError("[Server] Running in persistent mode")
-            try await Task.sleep(for: .seconds(3600 * 24))  // Run for 24 hours max
+            // Setup signal handling for graceful shutdown
+            signal(SIGTERM) { _ in
+                fputs("[Server] Received SIGTERM, shutting down...\n", stderr)
+                exit(0)
+            }
+            signal(SIGINT) { _ in
+                fputs("[Server] Received SIGINT, shutting down...\n", stderr)
+                exit(0)
+            }
+
+            // Keep server running indefinitely
+            fputs("[Server] Running in persistent mode\n", stderr)
+
+            // Sleep indefinitely - signals will interrupt and exit
+            while true {
+                try? await Task.sleep(for: .seconds(3600))
+            }
         } catch {
-            printError("[Server] Failed to start: \(error)")
+            fputs("[Server] Failed to start: \(error)\n", stderr)
             exit(1)
         }
     }
