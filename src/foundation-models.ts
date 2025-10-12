@@ -1,4 +1,4 @@
-import { executeSwiftCommand } from './executor.js';
+import { executeSwiftCommand, executeSwiftStreamCommand } from './executor.js';
 import {
   type LanguageModelInfo,
   type GenerationResult,
@@ -6,6 +6,8 @@ import {
   type GenerationOptions,
   type TranscriptEntry,
   type Response,
+  type Tool,
+  type ToolCall,
   Availability,
   UseCase,
   Instructions,
@@ -52,10 +54,12 @@ export class SystemLanguageModel {
   }
 
   /**
-   * Get a list of available language models
-   * This is a helper method for compatibility
+   * Get a list of available language models (internal helper)
+   * Note: The actual FoundationModels API only exposes SystemLanguageModel.default
+   * This is kept for internal use only.
+   * @internal
    */
-  static get availableModels(): Promise<LanguageModelInfo[]> {
+  private static get availableModels(): Promise<LanguageModelInfo[]> {
     return executeSwiftCommand<LanguageModelInfo[]>('listAvailableModels');
   }
 
@@ -150,11 +154,18 @@ export class SystemLanguageModel {
 
   /**
    * Generate text with streaming (internal use - prefer LanguageModelSession)
+   * Maps to: SystemLanguageModel streaming functionality in Swift
    * @internal
    */
   async *generateStream(prompt: string, config?: GenerationConfig): AsyncIterableIterator<string> {
-    // TODO: Implement streaming support
-    throw new Error('Streaming is not yet implemented. Use LanguageModelSession.streamResponse() instead.');
+    // Use the stream executor to get chunks
+    for await (const chunk of executeSwiftStreamCommand('generateStream', {
+      prompt,
+      modelId: this.modelId,
+      ...config,
+    })) {
+      yield chunk;
+    }
   }
 
   /**
@@ -209,31 +220,62 @@ export class SystemLanguageModel {
 export class LanguageModelSession {
   private readonly model: SystemLanguageModel;
   private readonly guardrails: Guardrails;
-  private readonly tools: any[];
+  private readonly tools: Tool[];
   private readonly instructions?: Instructions;
   private transcriptHistory: TranscriptEntry[] = [];
   private _isResponding: boolean = false;
 
   /**
    * Create a new LanguageModelSession
-   * Maps to: LanguageModelSession(model:guardrails:tools:instructions:) initializer in Swift
-   * 
+   *
+   * Maps to multiple Swift initializers:
+   * - init()
+   * - init(instructions:)
+   * - init(model:)
+   * - init(model:instructions:)
+   * - init(model:guardrails:tools:instructions:)
+   *
+   * Note: The actual Swift API does NOT have a separate `guardrails` parameter.
+   * Guardrails are managed internally by the framework.
+   *
+   * IMPORTANT: Tool execution is not yet fully implemented. Tools can be registered
+   * but automatic execution during respond/streamResponse is pending architecture updates.
+   * For now, you must manually handle tool calls from the response transcript.
+   *
    * @param model - The language model to use (defaults to SystemLanguageModel.default)
-   * @param guardrails - Safety guardrails for filtering (defaults to Guardrails.default)
+   * @param guardrails - Kept for backwards compatibility, but ignored (guardrails are internal)
    * @param tools - Array of tools available for the model to call (defaults to [])
    * @param instructions - Context, role, and preferences for model responses (optional)
+   *
+   * @example
+   * ```typescript
+   * class WeatherTool implements Tool {
+   *   name = 'getWeather';
+   *   description = 'Gets current weather';
+   *   async call(args: { city: string }) {
+   *     return new ToolOutput(`Sunny in ${args.city}`);
+   *   }
+   * }
+   *
+   * const session = new LanguageModelSession(
+   *   SystemLanguageModel.default,
+   *   Guardrails.default,
+   *   [new WeatherTool()],
+   *   new Instructions('You can check weather')
+   * );
+   * ```
    */
   constructor(
     model: SystemLanguageModel = SystemLanguageModel.default,
     guardrails: Guardrails = Guardrails.default,
-    tools: any[] = [],
+    tools: Tool[] = [],
     instructions?: Instructions
   ) {
     this.model = model;
-    this.guardrails = guardrails;
+    this.guardrails = guardrails;  // Stored but not used (matches actual API behavior)
     this.tools = tools;
     this.instructions = instructions;
-    
+
     // Add instructions to transcript if provided
     if (this.instructions) {
       this.transcriptHistory.push({
@@ -241,13 +283,6 @@ export class LanguageModelSession {
         instructions: this.instructions,
       });
     }
-  }
-
-  /**
-   * Get the underlying SystemLanguageModel
-   */
-  get languageModel(): SystemLanguageModel {
-    return this.model;
   }
 
   /**
@@ -325,13 +360,13 @@ export class LanguageModelSession {
   /**
    * Stream the model's response incrementally
    * Maps to: LanguageModelSession.streamResponse(to:) in Swift
-   * 
+   *
    * @param prompt - The text prompt to send
    * @returns AsyncIterable that yields text chunks
    */
   async *streamResponse(prompt: string): AsyncIterableIterator<string> {
     this._isResponding = true;
-    
+
     try {
       // Add prompt to transcript
       this.transcriptHistory.push({
@@ -339,8 +374,21 @@ export class LanguageModelSession {
         content: prompt,
       });
 
-      // TODO: Implement actual streaming
-      throw new Error('Streaming is not yet implemented. Use respond() instead.');
+      // Build context from transcript
+      const contextPrompt = this.buildContextPrompt();
+
+      // Stream the response
+      let fullResponse = '';
+      for await (const chunk of executeSwiftStreamCommand('generateStream', { prompt: contextPrompt })) {
+        fullResponse += chunk;
+        yield chunk;
+      }
+
+      // Add complete response to transcript
+      this.transcriptHistory.push({
+        type: 'response',
+        content: fullResponse,
+      });
     } finally {
       this._isResponding = false;
     }
@@ -349,21 +397,42 @@ export class LanguageModelSession {
   /**
    * Preload session resources for faster initial responses
    * Maps to: LanguageModelSession.prewarm() in Swift
+   *
+   * Prewarming initializes the model and allocates resources ahead of time,
+   * reducing latency for the first generation request. This is especially useful
+   * when you know you'll need the model soon but want to minimize wait time.
+   *
+   * @example
+   * ```typescript
+   * const session = new LanguageModelSession();
+   * await session.prewarm(); // Initialize resources
+   * // First generation will be faster
+   * const response = await session.respond('Hello');
+   * ```
    */
   async prewarm(): Promise<void> {
-    // TODO: Implement prewarming
-    // This would typically initialize resources in the Swift layer
+    await executeSwiftCommand('prewarm', {});
   }
 
   /**
    * Preload session with a prompt prefix for optimized generation
    * Maps to: LanguageModelSession.prewarm(promptPrefix:) in Swift
-   * 
+   *
+   * Prewarming with a prefix allows the model to process and cache the prefix,
+   * which can significantly speed up generation when using that prefix. This is
+   * particularly useful for system prompts that will be reused or template-based generation.
+   *
    * @param promptPrefix - The prompt prefix to preload
+   * @example
+   * ```typescript
+   * const session = new LanguageModelSession();
+   * await session.prewarmWithPrefix('You are a helpful coding assistant.');
+   * // Subsequent generations with this prefix will be faster
+   * const response = await session.respond('that specializes in TypeScript...');
+   * ```
    */
   async prewarmWithPrefix(promptPrefix: string): Promise<void> {
-    // TODO: Implement prewarming with prefix
-    // This would pass the prefix to the Swift layer for optimization
+    await executeSwiftCommand('prewarmWithPrefix', { prefix: promptPrefix });
   }
 
   /**

@@ -1,20 +1,21 @@
 # Apple Foundation Models for JavaScript
 
-A 1-to-1 TypeScript wrapper for Apple's [FoundationModels](https://developer.apple.com/documentation/FoundationModels) framework, enabling seamless use in Node.js and other JavaScript frameworks.
+A TypeScript wrapper providing 1-to-1 API translation of Apple's [FoundationModels](https://developer.apple.com/documentation/FoundationModels) framework for use in Node.js and JavaScript applications.
 
 ## Features
 
-- 🔄 **1-to-1 API Mapping**: Direct translation of Apple's Swift FoundationModels API to TypeScript
-- 📦 **Modern Build**: Built with Rolldown for optimal bundle size and performance
-- 🎯 **Type-Safe**: Full TypeScript support with comprehensive type definitions
-- 🚀 **Easy Installation**: Auto-builds Swift wrapper during npm install
-- 🍎 **Native Performance**: Leverages native Apple Foundation Models via Swift executable
+- 🎯 **1-to-1 API Translation**: Direct mapping from Swift to TypeScript/JavaScript
+- 📦 **Type-Safe**: Full TypeScript support with comprehensive type definitions
+- 🔄 **Instance & Session APIs**: Both single-generation and conversational interfaces
+- 🚀 **Auto-Build**: Swift wrapper builds automatically during npm install
+- 🍎 **Native Performance**: Leverages Apple's on-device AI models
+- 🔒 **Privacy-First**: All processing happens on-device
 
 ## Requirements
 
-- **Operating System**: macOS 15.0 (Sequoia) or later
-- **Node.js**: 18.0.0 or later
-- **Swift**: 6.0 or later (included with Xcode or installable from [swift.org](https://swift.org))
+- **macOS**: 15.0 (Sequoia) or later
+- **Node.js**: 18.0.0+
+- **Swift**: 6.0+ (included with Xcode)
 - **Architecture**: ARM64 (Apple Silicon) or x64 (Intel)
 
 ## Installation
@@ -23,266 +24,82 @@ A 1-to-1 TypeScript wrapper for Apple's [FoundationModels](https://developer.app
 npm install apple-foundation-models
 ```
 
-The package will automatically:
-1. Check platform compatibility
-2. Build the Swift wrapper executable during installation
-
-### Manual Build
-
-If you need to rebuild the Swift wrapper:
+The Swift wrapper builds automatically during installation. To rebuild manually:
 
 ```bash
 npm run build:swift
 ```
 
-## Usage
+## Quick Start
 
-### Instance-based API (1-to-1 Swift mapping)
-
-The `SystemLanguageModel` class provides a true 1-to-1 mapping with Apple's Swift API:
+### SystemLanguageModel (Instance-based API)
 
 ```typescript
-import { SystemLanguageModel } from 'apple-foundation-models';
+import { SystemLanguageModel, LanguageModelSession }
+  from 'apple-foundation-models';
 
-// List available models (static property)
-const models = await SystemLanguageModel.availableModels;
-console.log('Available models:', models);
+// Get default model
+const model = SystemLanguageModel.default;
 
-// Create a model instance
-const model = new SystemLanguageModel(models[0].id);
-
-// Get model properties
-console.log('Model ID:', model.id);
-console.log('Model Name:', await model.getName());
-console.log('Max Tokens:', await model.getMaxTokens());
-
-// Generate text using instance method
-const result = await model.generate('Write a haiku about TypeScript', {
-  maxTokens: 100,
-  temperature: 0.7,
-});
-
-console.log('Generated text:', result.text);
-console.log('Finish reason:', result.finishReason);
-```
-
-### Session-based API for Conversations
-
-Use `LanguageModelSession` for multi-turn conversations with context:
-
-```typescript
-import { SystemLanguageModel, LanguageModelSession } from 'apple-foundation-models';
-
-// Get a model
-const models = await SystemLanguageModel.availableModels;
-
-// Create a session with a system prompt
-const session = new LanguageModelSession(models[0].id, {
-  systemPrompt: 'You are a helpful coding assistant.',
-  generationConfig: {
-    maxTokens: 150,
-    temperature: 0.7,
-  },
-});
-
-// Have a multi-turn conversation
-const response1 = await session.generate('What is TypeScript?');
-console.log(response1.text);
-
-const response2 = await session.generate('How is it different from JavaScript?');
-console.log(response2.text);
-
-// Access message history
-console.log('Messages:', session.messages.length);
-
-// Reset the session
-session.reset();
-```
-
-## API Reference
-
-### `SystemLanguageModel` (Recommended)
-
-Instance-based class that provides 1-to-1 mapping with Swift's `SystemLanguageModel`.
-
-#### Static Properties
-
-##### `SystemLanguageModel.availableModels`
-
-Returns a promise that resolves to a list of available language models.
-
-**Returns**: `Promise<SystemLanguageModelInfo[]>`
-
-```typescript
-const models = await SystemLanguageModel.availableModels;
-```
-
-#### Constructor
-
-##### `new SystemLanguageModel(id: string)`
-
-Creates a new SystemLanguageModel instance.
-
-**Parameters**:
-- `id` - The model identifier (from `SystemLanguageModel.availableModels`)
-
-```typescript
-const model = new SystemLanguageModel('model-id');
-```
-
-#### Instance Properties
-
-##### `model.id`
-
-Get the model identifier.
-
-**Returns**: `string`
-
-##### `model.getName()`
-
-Get the human-readable name of the model.
-
-**Returns**: `Promise<string>`
-
-##### `model.getMaxTokens()`
-
-Get the maximum number of tokens this model can generate.
-
-**Returns**: `Promise<number>`
-
-#### Instance Methods
-
-##### `model.generate(prompt, config?)`
-
-Generate text using this language model.
-
-**Parameters**:
-- `prompt: string` - The input prompt
-- `config?: GenerationConfig` - Optional generation configuration
-
-**Returns**: `Promise<GenerationResult>`
-
-```typescript
-const result = await model.generate('Write a story', {
-  maxTokens: 200,
-  temperature: 0.8,
-});
-```
-
-##### `model.generateStream(prompt, config?)`
-
-Generate text with streaming (not yet implemented).
-
-**Parameters**:
-- `prompt: string` - The input prompt
-- `config?: GenerationConfig` - Optional generation configuration
-
-**Returns**: `AsyncIterableIterator<string>`
-
----
-
-### `LanguageModelSession`
-
-Session-based class for conversational interactions that maintains context across multiple turns.
-
-#### Constructor
-
-##### `new LanguageModelSession(modelId, config?)`
-
-Creates a new LanguageModelSession instance.
-
-**Parameters**:
-- `modelId: string | SystemLanguageModel` - The model identifier or SystemLanguageModel instance
-- `config?: SessionConfig` - Optional session configuration
-
-```typescript
-interface SessionConfig {
-  systemPrompt?: string;           // System prompt to set context
-  generationConfig?: GenerationConfig; // Default generation config
+// Check availability
+if (!model.isAvailable) {
+  console.log('Model not available');
+  return;
 }
 
-// Create a session with system prompt
-const session = new LanguageModelSession('model-id', {
-  systemPrompt: 'You are a helpful assistant.',
-  generationConfig: {
-    maxTokens: 100,
-    temperature: 0.7,
-  },
-});
+// Create session and generate
+const session = new LanguageModelSession(model);
+const response = await session.respond('Write a haiku about TypeScript');
+
+console.log(response.content);
 ```
 
-#### Instance Properties
-
-##### `session.languageModel`
-
-Get the underlying SystemLanguageModel instance.
-
-**Returns**: `SystemLanguageModel`
-
-##### `session.messages`
-
-Get the message history for this session (read-only).
-
-**Returns**: `readonly Message[]`
+### LanguageModelSession (Conversational API)
 
 ```typescript
-interface Message {
-  role: MessageRole;  // 'system', 'user', or 'assistant'
-  content: string;
-}
+import { SystemLanguageModel, LanguageModelSession, Instructions }
+  from 'apple-foundation-models';
+
+// Create session with instructions
+const model = SystemLanguageModel.default;
+const session = new LanguageModelSession(
+  model,
+  undefined, // guardrails (use default)
+  [],        // tools
+  new Instructions('You are a helpful coding assistant.')
+);
+
+// Multi-turn conversation
+const response1 = await session.respond('What is TypeScript?');
+console.log(response1.content);
+
+const response2 = await session.respond('How is it different from JavaScript?');
+console.log(response2.content);
+
+// Access conversation history
+console.log('Transcript entries:', session.transcript.length);
 ```
 
-#### Instance Methods
+## API Overview
 
-##### `session.generate(prompt, config?)`
+### Swift vs JavaScript/TypeScript
 
-Generate a response in the context of this session.
+This library provides a 1-to-1 translation of Apple's FoundationModels API:
 
-**Parameters**:
-- `prompt: string` - The user's input prompt
-- `config?: GenerationConfig` - Optional generation configuration (overrides session defaults)
+| Swift | JavaScript/TypeScript |
+|-------|----------------------|
+| `SystemLanguageModel.default` | `SystemLanguageModel.default` |
+| `model.availability` | `model.availability` (getter) |
+| `model.isAvailable` | `model.isAvailable` (getter) |
+| `LanguageModelSession(model:)` | `new LanguageModelSession(model)` |
+| `session.respond(to:)` | `await session.respond(prompt)` |
+| `session.streamResponse(to:)` | `session.streamResponse(prompt)` |
+| `session.transcript` | `session.transcript` (getter) |
+| `session.isResponding` | `session.isResponding` (getter) |
 
-**Returns**: `Promise<GenerationResult>`
-
-```typescript
-const response = await session.generate('Hello!');
-console.log(response.text);
-
-// Override default config for this message
-const response2 = await session.generate('Tell me more', {
-  maxTokens: 200,
-});
-```
-
-##### `session.generateStream(prompt, config?)`
-
-Generate a response with streaming (not yet implemented).
-
-**Parameters**:
-- `prompt: string` - The user's input prompt
-- `config?: GenerationConfig` - Optional generation configuration
-
-**Returns**: `AsyncIterableIterator<string>`
-
-##### `session.reset()`
-
-Reset the session, clearing all message history. The system prompt (if configured) is preserved.
-
-**Returns**: `void`
-
-```typescript
-session.reset(); // Clear conversation history
-```
-
----
+See [API_REFERENCE.md](API_REFERENCE.md) for complete API documentation with side-by-side examples.
 
 ## Architecture
-
-This package consists of three main components:
-
-1. **Swift Wrapper** (`swift/`): Executable that interfaces with Apple's FoundationModels framework
-2. **TypeScript Library** (`src/`): Type-safe JavaScript API that communicates with the Swift executable
-3. **Build Scripts** (`scripts/`): Automation for platform checks and Swift compilation
 
 ```
 ┌─────────────────┐
@@ -291,107 +108,116 @@ This package consists of three main components:
          │
          ▼
 ┌─────────────────┐
-│  TypeScript API │
+│  TypeScript API │  SystemLanguageModel, LanguageModelSession
 └────────┬────────┘
          │ JSON over stdin/stdout
          ▼
 ┌─────────────────┐
-│ Swift Executable│
+│ Swift Executable│  AppleFoundationModelsWrapper
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│FoundationModels│
+│FoundationModels│  Apple's Native Framework
 │   (Apple SDK)   │
 └─────────────────┘
 ```
 
-## Development
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical architecture.
 
-### Building
+## Examples
 
-```bash
-# Install dependencies
-npm install
+### Check Model Availability
 
-# Build TypeScript
-npm run build:js
+```typescript
+import { SystemLanguageModel, Availability }
+  from 'apple-foundation-models';
 
-# Build Swift wrapper
-npm run build:swift
+const model = SystemLanguageModel.default;
+const availability = model.availability;
 
-# Build both
-npm run build
+switch (availability) {
+  case Availability.Available:
+    console.log('Model is ready!');
+    break;
+  case Availability.DeviceNotEligible:
+    console.log('Device not eligible');
+    break;
+  case Availability.AppleIntelligenceNotEnabled:
+    console.log('Apple Intelligence not enabled');
+    break;
+  case Availability.ModelNotReady:
+    console.log('Model is downloading');
+    break;
+}
 ```
 
-### Project Structure
+### Use Case-Specific Models
 
+```typescript
+import { SystemLanguageModel, UseCase, LanguageModelSession }
+  from 'apple-foundation-models';
+
+// Create model for content tagging
+const model = new SystemLanguageModel(UseCase.ContentTagging);
+const session = new LanguageModelSession(model);
+
+const response = await session.respond(
+  'Extract tags from: "TypeScript is a typed superset of JavaScript"'
+);
 ```
-.
-├── src/                    # TypeScript source
-│   ├── index.ts           # Main entry point
-│   ├── foundation-models.ts # Core API
-│   ├── executor.ts        # Swift command executor
-│   └── types.ts           # Type definitions
-├── swift/                  # Swift wrapper
-│   ├── Package.swift      # Swift package manifest
-│   └── Sources/
-│       └── AppleFoundationModelsWrapper/
-│           └── main.swift # Swift executable
-├── scripts/                # Build scripts
-│   ├── check-platform.js  # Platform verification
-│   └── build-swift.js     # Swift build automation
-├── dist/                   # Compiled output (generated)
-├── package.json
-├── tsconfig.json
-└── rolldown.config.js
+
+### Streaming Responses
+
+```typescript
+import { SystemLanguageModel, LanguageModelSession }
+  from 'apple-foundation-models';
+
+const session = new LanguageModelSession(SystemLanguageModel.default);
+const stream = session.streamResponse('Write a story about AI');
+
+for await (const chunk of stream) {
+  process.stdout.write(chunk);
+}
 ```
+
+### Generation Options
+
+```typescript
+import { LanguageModelSession, SamplingMode }
+  from 'apple-foundation-models';
+
+const session = new LanguageModelSession();
+const options = {
+  sampling: SamplingMode.Random,
+  temperature: 0.8,
+  maximumResponseTokens: 200
+};
+
+const response = await session.respond('Write a creative poem', options);
+```
+
+## Documentation
+
+- [API Reference](API_REFERENCE.md) - Complete API with Swift ↔ JavaScript examples
+- [Architecture](ARCHITECTURE.md) - Technical implementation details
+- [Contributing](CONTRIBUTING.md) - Development and contribution guide
+- [Changelog](CHANGELOG.md) - Version history
 
 ## Limitations
 
-- **Platform**: Only works on macOS 15.0+
-- **Streaming**: Stream generation is not yet implemented
-- **Offline**: Requires active internet connection for model downloads
+- **Platform**: macOS 15.0+ only
+- **Offline**: Requires internet for initial model download
 
 ## Related Projects
 
 - [llm-cli](https://github.com/johnhenry/llm-cli) - Command-line interface for LLMs
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- [Apple FoundationModels](https://developer.apple.com/documentation/FoundationModels) - Official Swift documentation
 
 ## License
 
 MIT
 
-## Changelog
+## Contributing
 
-### 0.1.0 (1-to-1 API Translation)
-
-- ✨ **NEW**: `SystemLanguageModel` class - Instance-based API that provides true 1-to-1 mapping with Swift
-  - Constructor: `new SystemLanguageModel(id)`
-  - Static property: `SystemLanguageModel.availableModels`
-  - Instance methods: `generate()`, `generateStream()`
-  - Property getters: `getName()`, `getMaxTokens()`
-- ✨ **NEW**: `LanguageModelSession` class - Session-based API for conversational interactions
-  - Maintains message history across multiple turns
-  - Supports system prompts
-  - Methods: `generate()`, `generateStream()`, `reset()`
-  - Properties: `languageModel`, `messages`
-- ✨ **NEW**: Message and conversation types
-  - `Message` interface with `role` and `content`
-  - `MessageRole` enum (`System`, `User`, `Assistant`)
-  - `SessionConfig` for session configuration
-- 📚 Comprehensive documentation with examples
-- 🗑️ **REMOVED**: Deprecated `FoundationModels` static API (breaking change - use `SystemLanguageModel` instead)
-- 📝 Added new examples: `instance-based-api.mjs`, `session-based-api.mjs`
-
-### 0.0.0 (Initial Release)
-
-- 1-to-1 TypeScript API mapping for Apple FoundationModels
-- Support for listing available models
-- Support for text generation
-- Auto-build Swift wrapper during installation
-- Comprehensive TypeScript types
-- Built with Rolldown for modern bundling
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

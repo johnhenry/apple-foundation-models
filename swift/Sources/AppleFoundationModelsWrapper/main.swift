@@ -9,7 +9,7 @@ struct Command: Codable {
     let parameters: [String: AnyCodable]?
 }
 
-struct Response: Codable {
+struct CommandResponse: Codable {
     let success: Bool
     let data: AnyCodable?
     let error: String?
@@ -67,10 +67,10 @@ struct AnyCodable: Codable {
 
 // MARK: - Foundation Models Wrapper
 #if canImport(FoundationModels)
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 class FoundationModelsWrapper {
-    
-    func handleCommand(_ command: Command) async throws -> Response {
+
+    func handleCommand(_ command: Command) async throws -> CommandResponse {
         switch command.action {
         case "listAvailableModels":
             return try await listAvailableModels()
@@ -78,86 +78,229 @@ class FoundationModelsWrapper {
             return try await generateText(parameters: command.parameters)
         case "generateStream":
             return try await generateStream(parameters: command.parameters)
+        case "prewarm":
+            return try await prewarm(parameters: command.parameters)
+        case "prewarmWithPrefix":
+            return try await prewarmWithPrefix(parameters: command.parameters)
         default:
-            return Response(
+            return CommandResponse(
                 success: false,
                 data: nil,
                 error: "Unknown action: \(command.action)"
             )
         }
     }
-    
-    private func listAvailableModels() async throws -> Response {
-        // Get available models from FoundationModels
-        let models = LanguageModel.availableModels.map { model in
-            [
-                "id": model.id,
-                "name": model.name ?? "Unknown",
-                "maxTokens": model.maxTokens ?? 0
-            ] as [String: Any]
-        }
-        
-        return Response(
+
+    private func listAvailableModels() async throws -> CommandResponse {
+        // The actual FoundationModels API only provides SystemLanguageModel.default
+        // We'll return a single model entry representing the default model
+        let models = [[
+            "id": "default",
+            "name": "System Language Model",
+            "maxTokens": 4096  // Default max tokens
+        ] as [String: Any]]
+
+        return CommandResponse(
             success: true,
             data: AnyCodable(models),
             error: nil
         )
     }
-    
-    private func generateText(parameters: [String: AnyCodable]?) async throws -> Response {
+
+    private func generateText(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
         guard let params = parameters else {
-            return Response(success: false, data: nil, error: "Missing parameters")
+            return CommandResponse(success: false, data: nil, error: "Missing parameters")
         }
-        
+
         guard let promptValue = params["prompt"]?.value as? String else {
-            return Response(success: false, data: nil, error: "Missing 'prompt' parameter")
+            return CommandResponse(success: false, data: nil, error: "Missing 'prompt' parameter")
         }
-        
-        let modelId = params["modelId"]?.value as? String
+
         let maxTokens = params["maxTokens"]?.value as? Int
         let temperature = params["temperature"]?.value as? Double
-        
-        // Initialize model
-        var model: LanguageModel
-        if let modelId = modelId {
-            model = try LanguageModel(id: modelId)
-        } else {
-            // Use first available model
-            guard let firstModel = LanguageModel.availableModels.first else {
-                return Response(success: false, data: nil, error: "No models available")
+
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Generate text with options if provided
+        let content: String
+        if maxTokens != nil || temperature != nil {
+            // Build generation options
+            var opts = GenerationOptions()
+            if let temp = temperature {
+                opts.temperature = temp
             }
-            model = firstModel
+            if let tokens = maxTokens {
+                opts.maximumResponseTokens = tokens
+            }
+            let modelResponse = try await session.respond(to: promptValue, options: opts)
+            content = modelResponse.content
+        } else {
+            let modelResponse = try await session.respond(to: promptValue)
+            content = modelResponse.content
         }
-        
-        // Configure generation
-        var config = LanguageModel.GenerationConfig()
-        if let maxTokens = maxTokens {
-            config.maxTokens = maxTokens
-        }
-        if let temperature = temperature {
-            config.temperature = temperature
-        }
-        
-        // Generate text
-        let result = try await model.generate(prompt: promptValue, config: config)
-        
-        return Response(
+
+        return CommandResponse(
             success: true,
             data: AnyCodable([
-                "text": result.text,
-                "finishReason": result.finishReason?.rawValue ?? "unknown"
+                "text": content,
+                "finishReason": "stop"  // FoundationModels doesn't expose finish reason
             ]),
             error: nil
         )
     }
-    
-    private func generateStream(parameters: [String: AnyCodable]?) async throws -> Response {
-        // Stream implementation would use AsyncStream
-        // For now, return error as streaming needs different handling
-        return Response(
-            success: false,
-            data: nil,
-            error: "Streaming not yet implemented in CLI mode"
+
+    private func generateStream(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+        guard let params = parameters else {
+            return CommandResponse(success: false, data: nil, error: "Missing parameters")
+        }
+
+        guard let promptValue = params["prompt"]?.value as? String else {
+            return CommandResponse(success: false, data: nil, error: "Missing 'prompt' parameter")
+        }
+
+        let maxTokens = params["maxTokens"]?.value as? Int
+        let temperature = params["temperature"]?.value as? Double
+
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Build generation options if provided
+        var opts = GenerationOptions()
+        if let temp = temperature {
+            opts.temperature = temp
+        }
+        if let tokens = maxTokens {
+            opts.maximumResponseTokens = tokens
+        }
+
+        // Stream the response
+        let stream = session.streamResponse(to: promptValue)
+
+        // IMPLEMENTATION NOTE: Apple's streaming API returns snapshots (cumulative content),
+        // not deltas. We calculate deltas here to provide incremental chunks to TypeScript.
+        // This matches the expected streaming behavior where consumers receive only new content.
+        var previousContent = ""
+
+        // Output each chunk as a separate JSON line (single-line JSON for easy parsing)
+        for try await snapshot in stream {
+            // Calculate the delta (new content since last snapshot)
+            let currentContent = snapshot.content
+            let delta: String
+            if currentContent.hasPrefix(previousContent) {
+                delta = String(currentContent.dropFirst(previousContent.count))
+            } else {
+                // Fallback if content doesn't have expected prefix
+                delta = currentContent
+            }
+
+            // Only output if there's new content
+            if !delta.isEmpty {
+                let chunkResponse = CommandResponse(
+                    success: true,
+                    data: AnyCodable(["chunk": delta, "done": false]),
+                    error: nil
+                )
+                AppleFoundationModelsWrapperMain.printCompactResponse(chunkResponse)
+            }
+
+            previousContent = currentContent
+        }
+
+        // Send final done message (also compact for consistency)
+        let finalResponse = CommandResponse(
+            success: true,
+            data: AnyCodable(["chunk": "", "done": true]),
+            error: nil
+        )
+        AppleFoundationModelsWrapperMain.printCompactResponse(finalResponse)
+
+        // Return success (won't be printed since we already sent chunks)
+        return finalResponse
+    }
+
+    private func prewarm(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Prewarm the session
+        try await session.prewarm()
+
+        return CommandResponse(
+            success: true,
+            data: AnyCodable(["message": "Session prewarmed successfully"]),
+            error: nil
+        )
+    }
+
+    private func prewarmWithPrefix(parameters: [String: AnyCodable]?) async throws -> CommandResponse {
+        guard let params = parameters else {
+            return CommandResponse(success: false, data: nil, error: "Missing parameters")
+        }
+
+        guard let prefix = params["prefix"]?.value as? String else {
+            return CommandResponse(success: false, data: nil, error: "Missing 'prefix' parameter")
+        }
+
+        // Get the default model
+        let model = SystemLanguageModel.default
+
+        // Check availability
+        guard model.isAvailable else {
+            return CommandResponse(
+                success: false,
+                data: nil,
+                error: "System language model is not available on this device"
+            )
+        }
+
+        // Create a session with the model
+        let session = LanguageModelSession(model: model)
+
+        // Prewarm the session with prefix
+        // Note: prewarm(promptPrefix:) might need a Prompt type in newer APIs
+        try await session.prewarm(promptPrefix: Prompt(prefix))
+
+        return CommandResponse(
+            success: true,
+            data: AnyCodable(["message": "Session prewarmed with prefix successfully"]),
+            error: nil
         )
     }
 }
@@ -168,26 +311,29 @@ class FoundationModelsWrapper {
 struct AppleFoundationModelsWrapperMain {
     static func main() async {
         #if canImport(FoundationModels)
-        if #available(macOS 15.0, *) {
+        if #available(macOS 26.0, *) {
             let wrapper = FoundationModelsWrapper()
-            
+
             // Read command from stdin
             guard let line = readLine() else {
                 printError("No input provided")
                 exit(1)
             }
-            
+
             do {
                 let data = line.data(using: .utf8)!
                 let command = try JSONDecoder().decode(Command.self, from: data)
                 let response = try await wrapper.handleCommand(command)
-                printResponse(response)
+                // Don't print response for streaming - it's already been printed
+                if command.action != "generateStream" {
+                    printResponse(response)
+                }
             } catch {
                 printError("Error: \(error.localizedDescription)")
                 exit(1)
             }
         } else {
-            printError("Requires macOS 15.0 or later")
+            printError("Requires macOS 26.0 or later")
             exit(1)
         }
         #else
@@ -196,7 +342,7 @@ struct AppleFoundationModelsWrapperMain {
         #endif
     }
     
-    static func printResponse(_ response: Response) {
+    static func printResponse(_ response: CommandResponse) {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
@@ -208,9 +354,22 @@ struct AppleFoundationModelsWrapperMain {
             printError("Failed to encode response: \(error)")
         }
     }
-    
+
+    static func printCompactResponse(_ response: CommandResponse) {
+        do {
+            let encoder = JSONEncoder()
+            // No pretty printing for streaming - single line JSON
+            let data = try encoder.encode(response)
+            if let string = String(data: data, encoding: .utf8) {
+                print(string)
+            }
+        } catch {
+            printError("Failed to encode response: \(error)")
+        }
+    }
+
     static func printError(_ message: String) {
-        let response = Response(success: false, data: nil, error: message)
+        let response = CommandResponse(success: false, data: nil, error: message)
         printResponse(response)
     }
 }

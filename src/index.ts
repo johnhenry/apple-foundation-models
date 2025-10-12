@@ -29,12 +29,14 @@ export {
 export type {
   // SystemLanguageModel types
   LanguageModelInfo,
-  
+
   // LanguageModelSession types
   GenerationOptions,
   TranscriptEntry,
   Response,
-  
+  Tool,
+  ToolCall,
+
   // Legacy types (for backward compatibility)
   GenerationConfig,
   GenerationResult,

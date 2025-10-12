@@ -1,89 +1,99 @@
 /**
  * Instance-based API example for Apple Foundation Models
- * 
- * This example demonstrates the new 1-to-1 API mapping with the Swift SystemLanguageModel class:
- * 1. Using SystemLanguageModel.default (static property)
- * 2. Using SystemLanguageModel.availableModels (static property)
- * 3. Creating SystemLanguageModel instances
- * 4. Using instance methods for generation
+ *
+ * This example demonstrates the 1-to-1 API mapping with Swift's SystemLanguageModel class:
+ * 1. Using SystemLanguageModel.default (static getter)
+ * 2. Checking availability with enum values
+ * 3. Creating sessions for generation
+ * 4. Accessing model properties
  */
 
-import { SystemLanguageModel } from '../dist/index.mjs';
+import { SystemLanguageModel, LanguageModelSession, Availability, Instructions }
+  from '../dist/index.mjs';
 
 async function main() {
   try {
     console.log('🍎 Apple Foundation Models - Instance-based API Example\n');
-    
+
     // 1. Access the default model
     console.log('🔧 Accessing default model...');
-    const defaultModel = SystemLanguageModel.default;
-    console.log(`Default model ID: ${defaultModel.id}`);
-    console.log(`Is available: ${defaultModel.isAvailable}\n`);
-    
-    // 2. List available models using static property
-    console.log('📋 Listing available models...');
-    const models = await SystemLanguageModel.availableModels;
-    
-    console.log(`Found ${models.length} model(s):\n`);
-    models.forEach((model, index) => {
-      console.log(`${index + 1}. ${model.name}`);
-      console.log(`   ID: ${model.id}`);
-      console.log(`   Max Tokens: ${model.maxTokens}\n`);
-    });
-    
-    if (models.length === 0) {
-      console.log('❌ No models available. Please ensure you have models installed.');
-      process.exit(1);
+    const model = SystemLanguageModel.default;
+    console.log(`Model ID: ${model.id}`);
+
+    // 2. Check availability using enum
+    console.log('\n📊 Checking model availability...');
+    const availability = model.availability;
+
+    switch (availability) {
+      case Availability.Available:
+        console.log('✅ Model is available and ready!');
+        break;
+      case Availability.DeviceNotEligible:
+        console.log('❌ Device is not eligible for Foundation Models');
+        return;
+      case Availability.AppleIntelligenceNotEnabled:
+        console.log('❌ Apple Intelligence is not enabled');
+        return;
+      case Availability.ModelNotReady:
+        console.log('⏳ Model is not ready (downloading or initializing)');
+        return;
     }
-    
-    // 3. Create a SystemLanguageModel instance
-    console.log('🔧 Creating SystemLanguageModel instance...');
-    const model = new SystemLanguageModel(models[0].id);
-    console.log(`Created model with ID: ${model.id}\n`);
-    
-    // 4. Get model properties
-    console.log('📊 Getting model properties...');
-    const name = await model.getName();
-    const maxTokens = await model.getMaxTokens();
-    console.log(`Model Name: ${name}`);
-    console.log(`Max Tokens: ${maxTokens}`);
-    console.log(`Is Available: ${model.isAvailable}\n`);
-    
-    // 5. Generate text using instance method
-    console.log('✨ Generating text with instance method...');
-    const result = await model.generate('Write a haiku about TypeScript', {
-      maxTokens: 100,
-      temperature: 0.7,
-    });
-    
-    console.log('Generated text:');
-    console.log(result.text);
-    console.log(`Finish reason: ${result.finishReason}\n`);
-    
-    // 6. Generate another response with the same model instance
-    console.log('✨ Generating another response...');
-    const result2 = await model.generate('Explain what Apple Foundation Models are in one sentence.', {
-      maxTokens: 50,
-      temperature: 0.5,
-    });
-    
-    console.log('Generated text:');
-    console.log(result2.text);
-    console.log(`Finish reason: ${result2.finishReason}\n`);
-    
-    // 7. Create multiple model instances
-    if (models.length > 1) {
-      console.log('🔄 Creating another model instance...');
-      const model2 = new SystemLanguageModel(models[1].id);
-      const name2 = await model2.getName();
-      console.log(`Created second model: ${name2}\n`);
+
+    // 3. Check with boolean convenience property
+    console.log(`Is available (boolean): ${model.isAvailable}\n`);
+
+    if (!model.isAvailable) {
+      console.log('❌ Model not available');
+      return;
     }
-    
-    console.log('✅ Example completed successfully!');
-    console.log('\n💡 This instance-based API provides a 1-to-1 mapping with Swift\'s SystemLanguageModel class.');
-    
+
+    // 4. Create a session and generate
+    console.log('✨ Creating session and generating text...');
+    const session = new LanguageModelSession(model);
+
+    const response1 = await session.respond('Write a haiku about TypeScript');
+    console.log('\nGenerated haiku:');
+    console.log(response1.content);
+    console.log(`\nTranscript entries: ${response1.transcriptEntries.length}`);
+
+    // 5. Generate with custom options
+    console.log('\n✨ Generating with custom options...');
+    const options = {
+      temperature: 0.8,
+      maximumResponseTokens: 100
+    };
+
+    const response2 = await session.respond(
+      'Explain Apple Foundation Models in one sentence',
+      options
+    );
+    console.log('\nGenerated explanation:');
+    console.log(response2.content);
+
+    // 6. Create session with instructions
+    console.log('\n🔧 Creating session with instructions...');
+    const instructions = new Instructions('You are a helpful coding assistant.');
+    const session2 = new LanguageModelSession(
+      model,
+      undefined, // guardrails
+      [],        // tools
+      instructions
+    );
+
+    const response3 = await session2.respond('What is async/await?');
+    console.log('\nAssistant response:');
+    console.log(response3.content);
+
+    // 7. Check if session is responding
+    console.log(`\nIs responding: ${session2.isResponding}`);
+    console.log(`Transcript length: ${session2.transcript.length}`);
+
+    console.log('\n✅ Example completed successfully!');
+    console.log('\n💡 This API provides a 1-to-1 mapping with Swift\'s SystemLanguageModel.');
+
   } catch (error) {
     console.error('❌ Error:', error.message);
+    console.error(error.stack);
     process.exit(1);
   }
 }

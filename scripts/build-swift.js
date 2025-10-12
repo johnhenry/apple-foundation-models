@@ -4,11 +4,14 @@
  * Build the Swift wrapper executable
  * This script is run during postinstall to compile the Swift code
  */
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const { execSync } = require('child_process');
-const { existsSync } = require('fs');
-const path = require('path');
-const os = require('os');
+import { execSync } from 'child_process';
+import {existsSync} from 'fs';
+import path from 'path';
+import os from 'os';
 
 const swiftDir = path.join(__dirname, '..', 'swift');
 const packageSwift = path.join(swiftDir, 'Package.swift');
@@ -49,10 +52,10 @@ try {
 } catch (error) {
   console.error('\n❌ Failed to build Swift wrapper');
   console.error('This may happen if:');
-  console.error('  - FoundationModels framework is not available (requires macOS 15.0+)');
+  console.error('  - FoundationModels framework is not available (requires macOS 26.0+)');
   console.error('  - Xcode Command Line Tools are not installed');
   console.error('  - Swift version is incompatible\n');
-  
+
   // Don't fail installation, but warn
   console.warn('⚠️  Installation will continue, but the package may not work.\n');
   process.exit(0);
