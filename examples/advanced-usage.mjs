@@ -43,7 +43,7 @@ async function main() {
     
     if (models.length === 0) {
       console.warn('⚠️  No models available. This may happen if:');
-      console.warn('    - Not running on macOS 15.0+');
+      console.warn('    - Not running on macOS 26.0+');
       console.warn('    - FoundationModels framework not available');
       console.warn('    - Swift wrapper not built correctly\n');
       process.exit(1);
@@ -85,7 +85,7 @@ async function main() {
     
     if (error.message.includes('Swift')) {
       console.error('\n💡 Troubleshooting tips:');
-      console.error('   1. Make sure you are running on macOS 15.0+');
+      console.error('   1. Make sure you are running on macOS 26.0+');
       console.error('   2. Build the Swift wrapper: npm run build:swift');
       console.error('   3. Check that Swift is installed: swift --version');
       console.error('   4. Verify FoundationModels framework is available\n');

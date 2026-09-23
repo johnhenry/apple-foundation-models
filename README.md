@@ -14,15 +14,15 @@ A TypeScript wrapper providing 1-to-1 API translation of Apple's [FoundationMode
 
 ## Requirements
 
-- **macOS**: 15.0 (Sequoia) or later
-- **Node.js**: 18.0.0+
+- **macOS**: 26.0 (Tahoe) or later
+- **Node.js**: 26.0.0+
 - **Swift**: 6.0+ (included with Xcode)
-- **Architecture**: ARM64 (Apple Silicon) or x64 (Intel)
+- **Architecture**: Apple Silicon (ARM64)
 
 ## Installation
 
 ```bash
-npm install apple-foundation-models
+npm install @johnhenry/apple-foundation-models
 ```
 
 The Swift wrapper builds automatically during installation. To rebuild manually:
@@ -37,7 +37,7 @@ npm run build:swift
 
 ```typescript
 import { SystemLanguageModel, LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 // Get default model
 const model = SystemLanguageModel.default;
@@ -59,7 +59,7 @@ console.log(response.content);
 
 ```typescript
 import { SystemLanguageModel, LanguageModelSession, Instructions }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 // Create session with instructions
 const model = SystemLanguageModel.default;
@@ -131,7 +131,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical architecture.
 **NEW**: Complete tool/function calling support with automatic execution!
 
 ```typescript
-import { LanguageModelSession, ToolOutput } from 'apple-foundation-models';
+import { LanguageModelSession, ToolOutput } from '@johnhenry/apple-foundation-models';
 
 // Define tools the model can use
 const weatherTool = {
@@ -181,7 +181,7 @@ See [IMPLEMENTATION_COMPLETE.md](IMPLEMENTATION_COMPLETE.md) for complete docume
 
 ```typescript
 import { SystemLanguageModel, Availability }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = SystemLanguageModel.default;
 const availability = model.availability;
@@ -206,7 +206,7 @@ switch (availability) {
 
 ```typescript
 import { SystemLanguageModel, UseCase, LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 // Create model for content tagging
 const model = new SystemLanguageModel(UseCase.ContentTagging);
@@ -221,7 +221,7 @@ const response = await session.respond(
 
 ```typescript
 import { SystemLanguageModel, LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession(SystemLanguageModel.default);
 const stream = session.streamResponse('Write a story about AI');
@@ -235,7 +235,7 @@ for await (const chunk of stream) {
 
 ```typescript
 import { LanguageModelSession, SamplingMode }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const options = {
@@ -258,7 +258,7 @@ const response = await session.respond('Write a creative poem', options);
 
 ## Limitations
 
-- **Platform**: macOS 15.0+ only
+- **Platform**: macOS 26.0+ (Tahoe) only
 - **Offline**: Requires internet for initial model download
 - **Tool Execution**: Automatic tool execution not yet implemented (see [TOOL_EXECUTION_ARCHITECTURE.md](TOOL_EXECUTION_ARCHITECTURE.md))
 

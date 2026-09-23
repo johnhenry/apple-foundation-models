@@ -1,6 +1,6 @@
 {
-  "name": "apple-foundation-models",
-  "version": "0.0.1",
+  "name": "@johnhenry/apple-foundation-models",
+  "version": "0.0.0",
   "type": "module",
   "description": "1-to-1 TypeScript wrapper for Apple's Foundation Models, enabling use in Node.js and other JavaScript frameworks",
   "main": "dist/index.cjs",
@@ -15,7 +15,8 @@
   },
   "files": [
     "dist",
-    "swift",
+    "swift/Package.swift",
+    "swift/Sources",
     "scripts"
   ],
   "scripts": {
@@ -41,7 +42,7 @@
   "author": "John Henry",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=26.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
@@ -55,7 +56,7 @@
   "bugs": {
     "url": "https://github.com/johnhenry/apple-foundation-models/issues"
   },
-  "homepage": "https://github.com/johnhenry/apple-foundation-models#readme",
+  "homepage": "https://opensource.johnhenry.me/apple-foundation-models/",
   "os": [
     "darwin"
   ]

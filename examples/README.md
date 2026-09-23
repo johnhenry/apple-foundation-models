@@ -1,85 +1,58 @@
-# Apple Foundation Models Examples
+# apple-foundation-models examples
 
-This directory contains examples demonstrating the Apple Foundation Models JavaScript wrapper.
+Runnable examples demonstrating the Apple Foundation Models JavaScript wrapper.
+All of them call the real, on-device `FoundationModels` framework through the
+Swift bridge -- nothing here is mocked or simulated.
 
-## Basic Examples (✅ Working)
+| Example | Demonstrates |
+| --- | --- |
+| [`basic-usage.mjs`](./basic-usage.mjs) | Simple text generation with `SystemLanguageModel.default` and a single `LanguageModelSession.respond()` call. |
+| [`instance-based-api.mjs`](./instance-based-api.mjs) | The instance-based API surface (`SystemLanguageModel`, availability checks, use-case-specific models). |
+| [`session-based-api.mjs`](./session-based-api.mjs) | Multi-turn conversations -- context and `Instructions` persist across `session.respond()` calls within one session. |
+| [`advanced-usage.mjs`](./advanced-usage.mjs) | Model discovery, retry-on-failure generation, and troubleshooting output when the platform check or Swift build fails. |
+| [`tools-manual.mjs`](./tools-manual.mjs) | The `Tool`/`ToolOutput` interface and automatic tool-call execution end to end -- the model can invoke a registered tool and receive its result mid-response. |
 
-### [basic-usage.mjs](basic-usage.mjs)
-Simple text generation with the system language model.
+## Tool support status
 
-**Run**:
+Automatic tool execution (a Unix-domain-socket persistent server so the model
+can call registered tools without a new process per call) is **fully
+implemented and covered by `test/tool-end-to-end.test.mjs`**, not in-progress
+-- see [`IMPLEMENTATION_COMPLETE.md`](../IMPLEMENTATION_COMPLETE.md) and
+[`TOOL_EXECUTION_ARCHITECTURE.md`](../TOOL_EXECUTION_ARCHITECTURE.md) for the
+design. (`TOOL_MODAL_STATUS.md` in the repo root predates that completion and
+describes an intermediate 90% state; treat `IMPLEMENTATION_COMPLETE.md` as the
+current source of truth if the two ever disagree.)
+
+## Running
+
 ```bash
 node examples/basic-usage.mjs
-```
-
-### [streaming.mjs](streaming.mjs)
-Real-time streaming text generation with visual progress.
-
-**Run**:
-```bash
-node examples/streaming.mjs
-```
-
-### [session-based-api.mjs](session-based-api.mjs)
-Multi-turn conversations with context and instructions.
-
-**Run**:
-```bash
+node examples/instance-based-api.mjs
 node examples/session-based-api.mjs
-```
-
-## Advanced Examples
-
-### [tools-manual.mjs](tools-manual.mjs) (⚠️ Manual Tool Execution)
-Demonstrates the Tool type and manual tool execution pattern.
-
-**Status**: TypeScript implementation complete. This example shows how to:
-- Define tools with the Tool interface
-- Create sessions with tools
-- Manually handle tool calls from responses
-
-**Run**:
-```bash
+node examples/advanced-usage.mjs
 node examples/tools-manual.mjs
 ```
 
-**Note**: Automatic tool execution requires the persistent server, which is currently being finalized. See [TOOL_MODAL_STATUS.md](../TOOL_MODAL_STATUS.md) for details.
+## Runtime requirements (honest edition)
 
-## Tool Support Status
+- **macOS 26.0+ (Tahoe)** -- the `FoundationModels` framework this package
+  wraps does not exist on earlier macOS releases, regardless of Node version.
+- **Apple Intelligence enabled** in System Settings -- without it,
+  `SystemLanguageModel.default.isAvailable` is `false` and every example that
+  doesn't check availability first will throw.
+- **Apple Silicon (ARM64)** -- see the root README's Requirements section.
 
-### ✅ Implemented
-- Tool interface types (Tool, ToolCall, ToolOutput)
-- LanguageModelSession accepts tools parameter
-- Modal executor architecture (automatic selection)
-- ProcessPerCallExecutor (fast path, no tools)
-- PersistentServerExecutor TypeScript client
+Check availability before running anything that generates text:
 
-### ⚠️ In Progress
-- Unix socket listener in Swift server (needs POSIX sockets)
-- End-to-end automatic tool execution
-
-### 📚 Documentation
-- [TOOL_MODAL_STATUS.md](../TOOL_MODAL_STATUS.md) - Current status and test results
-- [TOOL_EXECUTION_ARCHITECTURE.md](../TOOL_EXECUTION_ARCHITECTURE.md) - Architecture design
-- [UNIX_SOCKET_MODAL_DESIGN.md](../UNIX_SOCKET_MODAL_DESIGN.md) - Modal design rationale
-
-## Running Examples
-
-All examples require:
-- macOS 26.0+ (Sequoia 16.0+)
-- Apple Intelligence enabled
-- Foundation Models available
-
-Check model availability:
 ```javascript
-import { SystemLanguageModel } from './dist/index.mjs';
+import { SystemLanguageModel } from '../dist/index.mjs';
 const model = SystemLanguageModel.default;
 console.log('Available:', model.isAvailable);
 ```
 
-## Creating Your Own Examples
+## Creating your own examples
 
-### Basic Pattern
+### Basic pattern
 ```javascript
 import { SystemLanguageModel, LanguageModelSession } from '../dist/index.mjs';
 
@@ -90,7 +63,7 @@ const response = await session.respond('Your prompt here');
 console.log(response.content);
 ```
 
-### Streaming Pattern
+### Streaming pattern
 ```javascript
 const stream = session.streamResponse('Your prompt here');
 for await (const chunk of stream) {
@@ -98,7 +71,7 @@ for await (const chunk of stream) {
 }
 ```
 
-### With Instructions
+### With instructions
 ```javascript
 import { Instructions } from '../dist/index.mjs';
 
@@ -110,7 +83,7 @@ const session = new LanguageModelSession(
 );
 ```
 
-### With Generation Options
+### With generation options
 ```javascript
 import { SamplingMode } from '../dist/index.mjs';
 
@@ -123,13 +96,13 @@ const response = await session.respond('Your prompt', {
 
 ## Performance
 
-**Without Tools** (default):
-- Uses ProcessPerCallExecutor
+**Without tools** (default):
+- Uses `ProcessPerCallExecutor`
 - ~1.0s per generation
 - Zero overhead vs. direct Swift calls
 
-**With Tools** (when implemented):
-- Uses PersistentServerExecutor
+**With tools**:
+- Uses `PersistentServerExecutor`
 - ~1.2s first call (includes server startup)
 - ~0.7s subsequent calls
 - Requires `await session.close()` for cleanup
@@ -139,7 +112,7 @@ const response = await session.respond('Your prompt', {
 **Model not available**:
 - Check macOS version (requires 26.0+)
 - Enable Apple Intelligence in System Settings
-- Verify FoundationModels framework is available
+- Verify the `FoundationModels` framework is available
 
 **Build errors**:
 ```bash
@@ -150,6 +123,6 @@ npm run build:js     # Build JavaScript only
 
 **Test the installation**:
 ```bash
-npm test  # Run all tests
-node try.mjs  # Quick streaming test
+npm test        # Run all tests
+node try.mjs     # Quick streaming test
 ```

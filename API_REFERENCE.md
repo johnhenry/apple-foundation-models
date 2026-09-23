@@ -37,7 +37,7 @@ let model = SystemLanguageModel.default
 
 ```typescript
 import { SystemLanguageModel }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = SystemLanguageModel.default;
 ```
@@ -73,7 +73,7 @@ case .unavailable(let reason):
 
 ```typescript
 import { SystemLanguageModel, Availability }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = SystemLanguageModel.default;
 const availability = model.availability;
@@ -126,7 +126,7 @@ if model.isAvailable {
 
 ```typescript
 import { SystemLanguageModel }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = SystemLanguageModel.default;
 
@@ -163,7 +163,7 @@ let model = SystemLanguageModel(
 
 ```typescript
 import { SystemLanguageModel, UseCase }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = new SystemLanguageModel(
   UseCase.ContentTagging
@@ -224,7 +224,7 @@ let session = LanguageModelSession(
 ```typescript
 import { SystemLanguageModel, LanguageModelSession,
          Instructions }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 // 1. Default model
 const session = new LanguageModelSession();
@@ -287,7 +287,7 @@ if session.isResponding {
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 
@@ -333,7 +333,7 @@ for entry in session.transcript {
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 
@@ -387,7 +387,7 @@ print(response.content)
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const response = await session.respond('Tell me a joke');
@@ -432,7 +432,7 @@ let response = try await session.respond(
 
 ```typescript
 import { LanguageModelSession, SamplingMode }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const options = {
@@ -481,7 +481,7 @@ for try await chunk in stream {
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const stream = session.streamResponse('Write a story');
@@ -520,7 +520,7 @@ try await session.prewarm()
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 await session.prewarm();
@@ -552,7 +552,7 @@ try await session.prewarm(
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 await session.prewarmWithPrefix('You are a');
@@ -593,7 +593,7 @@ let options = GenerationOptions(
 
 ```typescript
 import { SamplingMode }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const options = {
   sampling: SamplingMode.Random,
@@ -658,7 +658,7 @@ print(response.content)
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const response = await session.respond('Hello');
@@ -725,7 +725,7 @@ let session = LanguageModelSession(
 
 ```typescript
 import { LanguageModelSession, Instructions }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const instructions = new Instructions(
   'You are a helpful assistant'
@@ -963,7 +963,7 @@ print(response2.content)
 ```typescript
 import { SystemLanguageModel, LanguageModelSession,
          Instructions }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = SystemLanguageModel.default;
 if (!model.isAvailable) {
@@ -1027,7 +1027,7 @@ case .unavailable(let reason):
 ```typescript
 import { SystemLanguageModel, Availability,
          LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const model = SystemLanguageModel.default;
 
@@ -1090,7 +1090,7 @@ let summary = try await session.respond(
 
 ```typescript
 import { LanguageModelSession, SamplingMode }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 
@@ -1146,7 +1146,7 @@ print()
 
 ```typescript
 import { LanguageModelSession }
-  from 'apple-foundation-models';
+  from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const stream = session.streamResponse('Write a poem');

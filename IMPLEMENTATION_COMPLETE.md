@@ -177,7 +177,7 @@ All tests pass, comprehensive error handling, clean resource management.
 
 ### Basic Session (No Tools)
 ```typescript
-import { LanguageModelSession } from 'apple-foundation-models';
+import { LanguageModelSession } from '@johnhenry/apple-foundation-models';
 
 const session = new LanguageModelSession();
 const response = await session.respond('Hello!');
@@ -189,7 +189,7 @@ await session.close();
 
 ### Session with Tools
 ```typescript
-import { LanguageModelSession, ToolOutput } from 'apple-foundation-models';
+import { LanguageModelSession, ToolOutput } from '@johnhenry/apple-foundation-models';
 
 const weatherTool = {
   name: 'getWeather',

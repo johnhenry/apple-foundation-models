@@ -5,8 +5,8 @@ Thank you for your interest in contributing! This document provides guidelines f
 ## Development Setup
 
 1. **Requirements**
-   - macOS 15.0 (Sequoia) or later
-   - Node.js 18.0.0 or later
+   - macOS 26.0 (Tahoe) or later
+   - Node.js 26.0.0 or later
    - Swift 6.0 or later
    - Xcode Command Line Tools
 

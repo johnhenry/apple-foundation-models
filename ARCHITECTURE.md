@@ -303,7 +303,7 @@ return ["content": response.content]
 npm install
     │
     ├─> preinstall: check-platform.js (disabled in dev)
-    │   └─> Verify macOS 15.0+
+    │   └─> Verify macOS 26.0+
     │
     ├─> install: npm install dependencies
     │
@@ -443,7 +443,7 @@ Native Error (Swift) → Swift Wrapper → JSON Error → Executor → JavaScrip
 **1. Platform Errors**:
 ```typescript
 // Thrown before Swift execution
-throw new Error('This package requires macOS 15.0 or later');
+throw new Error('This package requires macOS 26.0 or later');
 ```
 
 **2. Swift Build Errors**:
