@@ -1,6 +1,35 @@
 # Apple Foundation Models for JavaScript
 
+[![npm version](https://img.shields.io/npm/v/%40johnhenry%2Fapple-foundation-models.svg)](https://www.npmjs.com/package/@johnhenry/apple-foundation-models)
+[![CI](https://github.com/johnhenry/apple-foundation-models/actions/workflows/ci.yml/badge.svg)](https://github.com/johnhenry/apple-foundation-models/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/%40johnhenry%2Fapple-foundation-models.svg)](LICENSE)
+
+Full documentation: [opensource.johnhenry.me/apple-foundation-models](https://opensource.johnhenry.me/apple-foundation-models/)
+
+Previously published as `apple-foundation-models`; last unscoped version was
+`0.0.1`. This package now publishes as `@johnhenry/apple-foundation-models`,
+restarting its version at `0.0.0` — see [CHANGELOG.md](CHANGELOG.md) for the
+full migration entry.
+
 A TypeScript wrapper providing 1-to-1 API translation of Apple's [FoundationModels](https://developer.apple.com/documentation/FoundationModels) framework for use in Node.js and JavaScript applications.
+
+## Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [API Overview](#api-overview)
+- [Architecture](#architecture)
+- [Tool Support](#tool-support)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Limitations](#limitations)
+- [Security model](#security-model)
+- [Family](#family)
+- [Related Projects](#related-projects)
+- [License](#license)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -126,7 +155,7 @@ See [API_REFERENCE.md](API_REFERENCE.md) for complete API documentation with sid
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical architecture.
 
-## Tool Support ✅
+## Tool Support
 
 **NEW**: Complete tool/function calling support with automatic execution!
 
@@ -258,9 +287,68 @@ const response = await session.respond('Write a creative poem', options);
 
 ## Limitations
 
-- **Platform**: macOS 26.0+ (Tahoe) only
-- **Offline**: Requires internet for initial model download
-- **Tool Execution**: Automatic tool execution not yet implemented (see [TOOL_EXECUTION_ARCHITECTURE.md](TOOL_EXECUTION_ARCHITECTURE.md))
+- **Platform**: macOS 26.0+ (Tahoe) only, Apple Silicon (ARM64) only.
+- **Offline**: Requires internet for the initial on-device model download via
+  Apple Intelligence; generation itself is fully on-device afterward.
+- **Tool Execution**: automatic tool/function-calling execution IS
+  implemented (see [IMPLEMENTATION_COMPLETE.md](IMPLEMENTATION_COMPLETE.md)
+  and `test/tool-end-to-end.test.mjs`) — an earlier version of this section
+  said otherwise; that was stale, not a current caveat.
+
+## Security model
+
+This package spawns a local Swift subprocess (`AppleFoundationModelsWrapper`)
+and talks to it over stdin/stdout for single calls, or a Unix domain socket
+for sessions that use tools. Everything runs on-device: no network calls are
+made by this package itself (the OS-level Apple Intelligence model download
+is the one exception, and that is Apple's, not this package's).
+
+**What this package guarantees:**
+
+- **No network I/O of its own.** Every text-generation call is a local
+  process/socket round trip to the Swift wrapper, which calls Apple's
+  on-device `FoundationModels` framework directly — this package never makes
+  an HTTP request.
+- **The Unix domain socket used for tool-enabled sessions is local-only and
+  per-session.** `PersistentServerExecutor` creates one socket file per
+  session (under the OS temp directory) and the Swift server shuts down and
+  removes it when the session is closed or the process receives SIGTERM
+  (see `SOCKET_CLEANUP_FIX.md`).
+
+**What is still yours:**
+
+- **Tool execution trust boundary.** When a session is created with tools,
+  the model can decide to invoke any tool function the *calling application*
+  registered, and that tool's `call()` implementation runs with whatever
+  privileges the calling process has — this package does not sandbox tool
+  code. If your tool wraps something dangerous (shelling out, writing files,
+  hitting an internal API), an LLM choosing when to call it is your trust
+  boundary to design, not this package's. The `weatherTool`/`calcTool`
+  examples in this README are illustrative only; the `eval()` call in the
+  `calculate` example above is a placeholder for demonstration, not a
+  pattern to ship.
+- **What the model outputs.** This package does not validate, filter, or
+  sanitize generated text or tool-call arguments beyond what Apple's own
+  `Guardrails` type provides; anything you do with a response (render it as
+  HTML, execute it, pass it to another system) is on you.
+
+## Family
+
+`@johnhenry/apple-foundation-models` isn't consumed only directly -- it's
+also the on-device backend that [`@johnhenry/aimatey-native-apple`](https://github.com/johnhenry/aimatey)
+wraps as a `BackendAdapter` inside the [aimatey](https://github.com/johnhenry/aimatey)
+ecosystem.
+
+- **[`@johnhenry/aimatey-native-apple`](https://github.com/johnhenry/aimatey/tree/main/packages/native-apple)**
+  -- dynamically `import()`s this package at runtime (an optional peer, not
+  a hard `package.json` dependency: `npm install @johnhenry/aimatey-native-apple
+  @johnhenry/apple-foundation-models`) and adapts `SystemLanguageModel` /
+  `LanguageModelSession` to aimatey's `Bridge` interface, so any aimatey
+  frontend adapter (e.g. the OpenAI-compatible one) can run against Apple's
+  on-device model with no API key, no network, and no cost. As of this
+  writing that dynamic import still targets the pre-scope specifier
+  (`'apple-foundation-models'`); it will need its own follow-up update to
+  target `'@johnhenry/apple-foundation-models'`.
 
 ## Related Projects
 
