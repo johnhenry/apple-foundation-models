@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Supersede an in-flight run when new commits land on the same ref -- the
+# whole family shares this block so a rapid push sequence never queues N
+# redundant runs.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # Repo-specific deviation from the family's usual `ubuntu-latest`: this
+    # package's postinstall (scripts/build-swift.js) compiles a Swift
+    # executable that `import FoundationModels` -- a framework that only
+    # exists in the macOS 26 SDK, so the build itself requires a macOS
+    # runner with that SDK, not just "any macOS". `macos-latest` currently
+    # resolves to the macOS 15 runner image (migrated 2025-08/09) and does
+    # NOT carry the macOS 26 SDK, so it cannot compile this package --
+    # `macos-26` (GA since 2026-02-26) is used explicitly instead. Re-check
+    # this pin if GitHub ever moves `macos-latest` forward past 26.
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # engines.node >=26.0.0 -- test the floor version directly rather
+        # than a matrix of now-unsupported older majors.
+        node-version: [26]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # GitHub-hosted runners (including macos-26) are fine with
+          # `cache: npm`; never do this on a self-hosted runner.
+          cache: npm
+
+      - name: Swift toolchain sanity check
+        run: swift --version
+
+      - run: npm ci
+
+      - name: Build (TypeScript + Swift)
+        run: npm run build
+
+      # The full suite, minus real on-device model calls: GitHub-hosted
+      # macOS runners have the macOS 26 SDK (needed to build) but do NOT
+      # have Apple Intelligence enabled (no Apple ID, no downloaded model,
+      # no real device eligibility) -- `SystemLanguageModel.default.isAvailable`
+      # is always false there. This is the CI recipe test/README.md itself
+      # documents; integration.test.mjs actually calls the live model and
+      # cannot pass here regardless of platform.
+      - name: Test (unit + Swift-bridge, no live model calls)
+        run: npm test
+        env:
+          NODE_TEST_SKIP_INTEGRATION: "1"
+
+  # Add when the repo commits generated output that ships -- see
+  # adopt-library templates/ci-generated-artifact-drift.yml. Add a `rust`
+  # job for Cargo workspaces -- templates/ci-rust-job.yml. Neither applies
+  # to this repo.

@@ -1,0 +1,64 @@
+# Repo-specific deviation from the family's usual `ubuntu-latest` publish
+# runner: this package's postinstall (scripts/build-swift.js) compiles a
+# Swift executable that `import FoundationModels`, a framework only present
+# in the macOS 26 SDK. The published tarball itself doesn't need Swift (the
+# postinstall build runs on the CONSUMER's machine at their install time),
+# but the gating test suite below does need the Swift build to succeed
+# before anything is published, so the whole job runs on `macos-26` (GA
+# since 2026-02-26; `macos-latest` is still pinned to the macOS 15 image and
+# lacks the macOS 26 SDK) both for consistency with ci.yml and to actually
+# exercise the postinstall before shipping.
+
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: macos-26
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Must equal engines.node's major, .nvmrc and the ci.yml matrix
+          # (family floor: 26). A gate that runs on a version the package
+          # declares unsupported tests nothing.
+          node-version: "26"
+          registry-url: "https://registry.npmjs.org"
+
+      - run: npm ci
+
+      - name: Build (TypeScript + Swift)
+        run: npm run build
+
+      # Full gate minus live model calls -- see the matching comment in
+      # ci.yml. GitHub-hosted macOS runners have the SDK to build Swift but
+      # not Apple Intelligence enabled, so integration.test.mjs (real model
+      # calls) cannot run here regardless of platform.
+      - name: Test (unit + Swift-bridge, no live model calls)
+        run: npm test
+        env:
+          NODE_TEST_SKIP_INTEGRATION: "1"
+
+      - name: Publish
+        # Idempotent: `npm view` exits non-zero for a version that isn't on
+        # the registry yet, which is the signal to publish. This pre-flight
+        # check is the family standard -- do NOT publish first and grep
+        # stderr for "cannot publish over"; that depends on npm's wording.
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if npm view "$PKG_NAME@$PKG_VERSION" version >/dev/null 2>&1; then
+            echo "::notice title=Already published::$PKG_NAME@$PKG_VERSION is already on npm; nothing to do."
+            exit 0
+          fi
+          npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
