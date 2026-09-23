@@ -2,7 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { SystemLanguageModel, LanguageModelSession } from '../dist/index.mjs';
 
-describe('Previously Unimplemented Methods', () => {
+// Every test in this file calls the real Swift bridge / live model -- see
+// test/integration.test.mjs for the convention this mirrors.
+// Skip with: NODE_TEST_SKIP_INTEGRATION=1 npm test
+const SKIP_INTEGRATION = process.env.NODE_TEST_SKIP_INTEGRATION === '1';
+
+describe('Previously Unimplemented Methods', { skip: SKIP_INTEGRATION }, () => {
   describe('SystemLanguageModel.generateStream()', () => {
     it('should stream text generation', async () => {
       const model = SystemLanguageModel.default;

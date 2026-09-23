@@ -2,7 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { SystemLanguageModel, LanguageModelSession } from '../dist/index.mjs';
 
-describe('Streaming API', () => {
+// Every test in this file calls the real Swift bridge / live model -- see
+// test/integration.test.mjs for the convention this mirrors.
+// Skip with: NODE_TEST_SKIP_INTEGRATION=1 npm test
+const SKIP_INTEGRATION = process.env.NODE_TEST_SKIP_INTEGRATION === '1';
+
+describe('Streaming API', { skip: SKIP_INTEGRATION }, () => {
   it('should stream response incrementally', async () => {
     const session = new LanguageModelSession();
     const stream = session.streamResponse('Count to 3');

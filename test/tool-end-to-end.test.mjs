@@ -17,7 +17,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { LanguageModelSession, SystemLanguageModel, ToolOutput } from '../dist/index.mjs';
 
-describe('End-to-End Tool Execution (Slow - calls actual model)', () => {
+// Every test in this file calls the real Swift bridge / live model -- see
+// test/integration.test.mjs for the convention this mirrors.
+// Skip with: NODE_TEST_SKIP_INTEGRATION=1 npm test
+const SKIP_INTEGRATION = process.env.NODE_TEST_SKIP_INTEGRATION === '1';
+
+describe('End-to-End Tool Execution (Slow - calls actual model)', { skip: SKIP_INTEGRATION }, () => {
   it('should create session with tools and connect to server', async () => {
     const model = SystemLanguageModel.default;
 
@@ -260,7 +265,7 @@ describe('End-to-End Tool Execution (Slow - calls actual model)', () => {
   });
 });
 
-describe('Tool Execution - Performance', () => {
+describe('Tool Execution - Performance', { skip: SKIP_INTEGRATION }, () => {
   it('should have acceptable latency with persistent server', async () => {
     const model = SystemLanguageModel.default;
 
