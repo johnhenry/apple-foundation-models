@@ -59,6 +59,9 @@ jobs:
         env:
           NODE_TEST_SKIP_INTEGRATION: "1"
 
+  workflow-lint:
+    uses: johnhenry/workflows/.github/workflows/workflow-lint.yml@v1
+
   # Add when the repo commits generated output that ships -- see
   # adopt-library templates/ci-generated-artifact-drift.yml. Add a `rust`
   # job for Cargo workspaces -- templates/ci-rust-job.yml. Neither applies
