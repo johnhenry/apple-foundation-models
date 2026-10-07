@@ -20,7 +20,7 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: publish
+  group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
