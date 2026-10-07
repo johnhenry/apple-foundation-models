@@ -11,10 +11,17 @@
 
 name: Publish to npm
 
+# Publish model: main is the release branch. A push to main publishes only if
+# package.json's version isn't on npm yet (otherwise a clean no-op), then tags
+# v<version> and creates a GitHub Release. See johnhenry/workflows' README.
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
   workflow_dispatch: {}
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 jobs:
   publish:
