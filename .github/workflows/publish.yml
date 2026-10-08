@@ -27,7 +27,7 @@ jobs:
   publish:
     runs-on: macos-26
     permissions:
-      contents: read
+      contents: write # tag + GitHub Release by-product
       id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
@@ -54,11 +54,26 @@ jobs:
         env:
           NODE_TEST_SKIP_INTEGRATION: "1"
 
+      - name: Check whether this version is new on npm
+        id: release-probe
+        # Feeds the tag + GitHub Release step below: only a run that actually
+        # publishes a new version should create the release.
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "$PKG_NAME@$PKG_VERSION" version >/dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish
         # Idempotent: `npm view` exits non-zero for a version that isn't on
         # the registry yet, which is the signal to publish. This pre-flight
         # check is the family standard -- do NOT publish first and grep
         # stderr for "cannot publish over"; that depends on npm's wording.
+        id: publish
         run: |
           PKG_NAME=$(node -p "require('./package.json').name")
           PKG_VERSION=$(node -p "require('./package.json').version")
@@ -69,3 +84,9 @@ jobs:
           npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag and GitHub Release (by-product)
+        if: steps.release-probe.outputs.new == 'true' && steps.publish.outcome == 'success'
+        uses: johnhenry/workflows/.github/actions/create-release@v1
+        with:
+          version: ${{ steps.release-probe.outputs.version }}
